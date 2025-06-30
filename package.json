@@ -23,6 +23,8 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
+    "jsdoc": "^3.6.11",
+    "minami": "^1.2.3",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.7"
   }

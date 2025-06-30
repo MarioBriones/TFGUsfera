@@ -33,7 +33,11 @@ function slugify(nombre) {
 const API = import.meta.env.VITE_API_URL;
 const BASE = import.meta.env.BASE_URL;
 
-
+/**
+ * Componente que muestra y gestiona la plantilla de un equipo.
+ * @function Plantilla
+ * @returns {JSX.Element} Vista con jugadores, filtros y gestión de datos
+ */
 export default function Plantilla() {
   const { state } = useLocation();
   const usuario = state?.usuario || {};
@@ -232,7 +236,12 @@ setEquipos(['todo', ...lista.filter((e) => e !== 'todo')]);
       .catch(console.error);
   }, [selectedTeam]);
 
-  // Editar o crear jugador
+/**
+ * Guarda o actualiza los datos de un jugador.
+ * @function saveJugador
+ * @param {object} jugador - Objeto con los datos del jugador
+ * @returns {Promise<void>}
+ */
   const saveJugador = async () => {
     if (!form.fecha_dia || !form.fecha_mes || !form.fecha_ano) {
       alert('Debes elegir día, mes y año de nacimiento');
@@ -306,14 +315,26 @@ setEquipos(['todo', ...lista.filter((e) => e !== 'todo')]);
       .catch(console.error);
   };
 
-  // Eliminar un jugador
+/**
+ * Elimina un jugador del sistema y borra su información.
+ * @function deleteOne
+ * @async
+ * @param {number} id - ID del jugador a eliminar
+ * @returns {Promise<void>} Resultado de la eliminación
+ */
   const deleteOne = async (id) => {
     if (!window.confirm('¿Borrar este jugador?')) return;
     await fetch(`${API}/jugadores/${id}`, { method: 'DELETE' });
     setJugadores((js) => js.filter((j) => j.id !== id));
   };
 
-  // Mover varios jugadores
+  /**
+ * Mueve múltiples jugadores a otro equipo.
+ * @function moveBulk
+ * @async
+ * @param {string} destino - Nombre del equipo de destino
+ * @returns {Promise<void>}
+ */
   const moveBulk = async () => {
   if (!bulkTeam || bulkTeam === "todo" || bulkTeam === "nada") {
     alert("Selecciona un equipo válido al que mover.");

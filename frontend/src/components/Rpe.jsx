@@ -43,6 +43,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');    // elimina caracteres especiales
 }
 
+/**
+ * Componente para seguimiento diario de RPE (valoración del esfuerzo).
+ * @function Rpe
+ * @returns {JSX.Element} Vista con valores por jugador, semana y día
+ */
 export default function Rpe() {
   // Recuperamos el usuario del estado de navegación (pasado desde Inicio.jsx)
   const { state } = useLocation();
@@ -84,14 +89,26 @@ const meses = [
   'Noviembre 2025', 'Diciembre 2025', 'Enero 2026', 'Febrero 2026',
   'Marzo 2026', 'Abril 2026', 'Mayo 2026', 'Junio 2026'
 ];
-// Generar un array de semanas por mes (4 por mes)
+
+/**
+ * Calcula las semanas que pertenecen a un mes específico.
+ * @function generarSemanasMes
+ * @param {number} mes - Número del mes (0–11)
+ * @returns {number[]} Array con semanas correspondientes al mes
+ */
 const generarSemanasMes = (mesIndex) => {
   const base = mesIndex * 4;
   return Array.from({ length: 4 }, (_, i) => base + i + 1); // Semana 1 a 48
 };
 const [mesesAbiertos, setMesesAbiertos] = useState({});
 
-  const toggleMes = (mes) => {
+/**
+ * Abre o cierra el bloque visual de un mes concreto.
+ * @function toggleMes
+ * @param {number} mes - Número del mes
+ * @returns {void}
+ */
+const toggleMes = (mes) => {
     setMesesAbiertos((prev) => ({ ...prev, [mes]: !prev[mes] }));
   };
 const [diaActivo, setDiaActivo] = useState(null); // identificador único: `${mes}_${semana}_${dia}`
@@ -102,6 +119,12 @@ const [subiendo, setSubiendo] = useState(false);
 const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false);
 const [semanaSeleccionada, setSemanaSeleccionada] = useState(null);
 
+/**
+ * Comprueba si hay datos RPE cargados para una semana dada.
+ * @function semanaTieneDatos
+ * @param {number} semana - Número de la semana
+ * @returns {boolean} True si hay al menos un dato, false en caso contrario
+ */
 const semanaTieneDatos = (semana) => {
   return rpes.some(r => r.semana === semana);
 };
@@ -203,6 +226,14 @@ useEffect(() => {
     }
   }, [usuario.rol, selectedTeam, equipos]);
 
+  /**
+ * Guarda los valores RPE introducidos por el usuario en un día concreto.
+ * @function guardarRPE
+ * @async
+ * @param {number} semana - Semana
+ * @param {string} dia - Día de la semana
+ * @returns {Promise<void>}
+ */
 const guardarRPE = async (mes, semana, dia) => {
   const datos = Object.entries(valoresRPE).map(([jugadorId, valor]) => ({
     jugador_id: parseInt(jugadorId, 10),
@@ -240,6 +271,15 @@ const guardarRPE = async (mes, semana, dia) => {
   }
 };
 
+/**
+ * Elimina todos los valores RPE de un día concreto para un equipo.
+ * @function borrarRPE
+ * @async
+ * @param {number} mes - Número del mes (0–11)
+ * @param {number} semana - Número de la semana (1–40 aprox.)
+ * @param {string} dia - Día de la semana ('Lunes', 'Martes'…)
+ * @returns {Promise<void>} Resultado de la operación de borrado
+ */
 const borrarRPE = async (mes, semana, dia) => {
   const confirmar = window.confirm("¿Eliminar los valores RPE de este día?");
   if (!confirmar) return;
@@ -262,14 +302,25 @@ const borrarRPE = async (mes, semana, dia) => {
 };    
 
 
-
+/**
+ * Comprueba si hay valores RPE para una combinación de mes, semana y día.
+ * @function tieneRPE
+ * @param {number} mes - Mes a comprobar
+ * @param {number} semana - Semana a comprobar
+ * @param {string} dia - Día a comprobar
+ * @returns {boolean} True si hay RPE asignado, false en caso contrario
+ */
 const tieneRPE = (mes, semana, dia) => {
   return rpes.some(r =>
     r.mes === mes && r.semana === semana && r.dia === dia
   );
 };
 
-
+/**
+ * Calcula los valores RPE por jugador en la semana seleccionada.
+ * @function datosPorJugador
+ * @returns {object[]} Lista de jugadores con sus valores diarios
+ */
 const datosPorJugador = useMemo(() => {
   if (!semanaSeleccionada || jugadores.length === 0 || rpes.length === 0) return [];
 
@@ -288,6 +339,11 @@ const datosPorJugador = useMemo(() => {
   });
 }, [jugadores, rpes, semanaSeleccionada]);
 
+/**
+ * Calcula la media de RPE por jugador para generar la barra general semanal.
+ * @function datosBarraGeneral
+ * @returns {object[]} Media semanal de esfuerzo por jugador
+ */
 const datosBarraGeneral = useMemo(() => {
   if (!semanaSeleccionada || jugadores.length === 0 || rpes.length === 0) return [];
 

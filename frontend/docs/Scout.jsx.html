@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Scout.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Scout.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Scout.jsx
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Card,
+  CardContent,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select';
+
+
+function slugify(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]/g, '');
+}
+
+/**
+ * Componente de gestión de jugadores en seguimiento (scouting).
+ * @function Scout
+ * @returns {JSX.Element} Vista para registrar, visualizar y eliminar jugadores en seguimiento
+ */
+export default function Scout() {
+  const { state } = useLocation();
+  const usuario = state?.usuario || {};
+  const navigate = useNavigate();
+
+  const opcionesEntrenador = [
+    'PLANTILLA', 'REPOSITORIO', 'METODOLOGÍA', 'PREP. FÍSICA', 'SCOUT',  
+  ];
+  const opcionesDirCoord = [
+    'PLANTILLAS', 'REPOSITORIO', 'METODOLOGÍA', 'PREP. FÍSICA', 'SCOUT', 'CUENTAS',  
+  ];
+  const opcionesMenu = ['director', 'coordinador'].includes(usuario.rol)
+    ? opcionesDirCoord
+    : opcionesEntrenador;
+
+  const fotoSrc = `${import.meta.env.BASE_URL}fotos/${slugify(usuario.nombre || 'avatar-blank')}.png`;
+  const [proximosCumples, setProximosCumples] = useState([]);
+  const [anioSeleccionado, setAnioSeleccionado] = useState('2021');
+  const [jugadores, setJugadores] = useState([]);
+  const [mostrarModalNuevo, setMostrarModalNuevo] = useState(false);
+  const [posiciones, setPosiciones] = useState([]);
+  const [jugadorSeleccionado, setJugadorSeleccionado] = useState(null);
+  
+const [nuevoJugador, setNuevoJugador] = useState({
+  nombre: '',
+  club: '',
+  lateralidad: '',
+  posicion: '',
+  contacto: '',
+  valoracion: '',
+  descripcion: '',
+});
+
+useEffect(() => {
+  fetch(`${import.meta.env.VITE_API_URL}/posiciones`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) setPosiciones(data.posiciones);
+    })
+    .catch(err => console.error("Error cargando posiciones:", err));
+}, []);
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL}/cumples`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.success) return;
+        const hoy = new Date();
+        const startOfToday = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+        const conCumple = data.jugadores
+          .map(j => {
+            const fechaNac = new Date(j.fecha_nacimiento);
+            const cumpleEsteAnio = new Date(hoy.getFullYear(), fechaNac.getMonth(), fechaNac.getDate());
+            if (cumpleEsteAnio &lt; startOfToday) cumpleEsteAnio.setFullYear(hoy.getFullYear() + 1);
+            return {
+              ...j,
+              cumpleDate: cumpleEsteAnio,
+              diasParaCumple: Math.floor((cumpleEsteAnio - startOfToday) / (1000 * 60 * 60 * 24)),
+            };
+          })
+          .sort((a, b) => a.diasParaCumple - b.diasParaCumple)
+          .slice(0, 3);
+        setProximosCumples(conCumple);
+      });
+  }, []);
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL}/scout/${anioSeleccionado}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setJugadores(data.jugadores);
+      });
+  }, [anioSeleccionado]);
+
+  /**
+ * Crea un nuevo jugador en seguimiento con los datos proporcionados.
+ * @function handleCrearJugador
+ * @async
+ * @returns {Promise&lt;void>}
+ */
+const handleCrearJugador = async (e) => {
+  e.preventDefault();
+
+  // Validaciones manuales
+  if (!nuevoJugador.lateralidad) {
+    alert('Debes seleccionar la lateralidad');
+    return;
+  }
+  if (!nuevoJugador.posicion) {
+    alert('Debes seleccionar la posición principal');
+    return;
+  }
+  if (!nuevoJugador.valoracion) {
+    alert('Debes seleccionar la valoración');
+    return;
+  }
+
+  const jugadorFinal = {
+    nombre: nuevoJugador.nombre,
+    club: nuevoJugador.club,
+    lateralidad: nuevoJugador.lateralidad,
+    posicion: nuevoJugador.posicion,
+    contacto: nuevoJugador.contacto,
+    valoracion: nuevoJugador.valoracion,
+    descripcion: nuevoJugador.descripcion,
+    anio_nacimiento: parseInt(anioSeleccionado, 10)
+  };
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/scout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(jugadorFinal)
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Jugador creado correctamente');
+      setMostrarModalNuevo(false);
+      setNuevoJugador({
+        nombre: '',
+        club: '',
+        lateralidad: '',
+        posicion: '',
+        contacto: '',
+        valoracion: '',
+        descripcion: '',
+      });
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/scout/${anioSeleccionado}`);
+      const updated = await response.json();
+      if (updated.success) setJugadores(updated.jugadores);
+    } else {
+      alert('Error al crear jugador');
+    }
+  } catch (err) {
+    console.error('Error creando jugador:', err);
+    alert('Error de red al crear jugador');
+  }
+};
+
+/**
+ * Genera y descarga un informe PDF del jugador en seguimiento.
+ * @function handleDescargarInforme
+ * @async
+ * @param {object} jugador - Objeto con los datos del jugador
+ * @returns {Promise&lt;void>} Descarga automática del archivo generado
+ */
+const handleDescargarInforme = async (jugador) => {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/scout/pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(jugador),
+    });
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `informe_${jugador.nombre_completo.replace(/\s+/g, '_')}.pdf`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Error descargando informe:', err);
+    alert('No se pudo generar el informe');
+  }
+};
+
+/**
+ * Elimina un jugador en seguimiento del sistema.
+ * @function handleEliminarJugador
+ * @async
+ * @param {number} id - ID del jugador a eliminar
+ * @returns {Promise&lt;void>} Resultado de la operación de eliminación y actualización de lista
+ */
+const handleEliminarJugador = async (id) => {
+  const confirmar = window.confirm('¿Estás seguro de que quieres eliminar este jugador en seguimiento?');
+  if (!confirmar) return;
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/scout/${id}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Jugador eliminado correctamente');
+      setJugadorSeleccionado(null);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/scout/${anioSeleccionado}`);
+      const updated = await response.json();
+      if (updated.success) setJugadores(updated.jugadores);
+    } else {
+      alert('Error al eliminar jugador');
+    }
+  } catch (err) {
+    console.error('Error eliminando jugador:', err);
+    alert('Error de red al eliminar jugador');
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+  return (
+    &lt;div className="relative flex flex-col min-h-screen bg-cover bg-center" style={{
+      backgroundImage: `url(${import.meta.env.BASE_URL}central.png)`,
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      backgroundBlendMode: 'lighten'
+    }}>
+      &lt;header className="sticky top-0 z-50">
+        &lt;div className="h-1 bg-gray-400 w-full" />
+        &lt;div className="bg-gray-200">
+          &lt;div className="relative flex items-center justify-between w-full px-4 sm:px-6 lg:px-8 py-3">
+            &lt;img src={`${import.meta.env.BASE_URL}logo.png`} alt="Escudo Unionistas" className="h-12 w-12 cursor-pointer flex-shrink-0" onClick={() => navigate('/home', { state: { usuario } })} />
+            &lt;div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              &lt;h1 className="text-2xl sm:text-3xl font-bold text-gray-800 cursor-pointer hover:text-red-600 transition pointer-events-auto" onClick={() => navigate('/home', { state: { usuario } })}>USFERA&lt;/h1>
+              &lt;p className="text-sm sm:text-base text-gray-600">Seguimiento de Jugadores&lt;/p>
+            &lt;/div>
+            {/* Avatar y botón Cerrar Sesión */}
+                        &lt;div className="flex items-center space-x-2">
+                          &lt;img
+                            src={fotoSrc}
+                            alt={`Avatar de ${usuario.nombre}`}
+                            className="h-8 w-8 rounded-full object-cover border-2 border-white shadow-sm hidden sm:inline-block"
+                            onError={e => (e.currentTarget.src = `${import.meta.env.BASE_URL}fotos/avatar-blank.png`)}
+                          />
+                          &lt;Button
+                            variant="outline"
+                            className="bg-transparent border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition"
+                            onClick={() => navigate('/', { state: { usuario } })}
+                          >
+                            Cerrar Sesión
+                          &lt;/Button>
+                        &lt;/div>
+                      &lt;/div>
+                    &lt;/div>
+                   &lt;div className="h-px bg-gray-400 w-full" />
+                    &lt;div className="bg-red-50">
+                      &lt;nav className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+                        &lt;ul className="flex flex-wrap justify-center gap-2 sm:gap-4 py-2 text-sm">
+              {opcionesMenu.map(opt => (
+                &lt;li key={opt}>
+                  &lt;button
+                    onClick={() => navigate(`/${opt.toLowerCase().replace(/\s+/g, '')}`, { state: { usuario } })}
+                    className={`px-3 py-1 rounded transition ${opt === 'SCOUT' ? 'bg-gray-300 text-black' : 'text-gray-700 hover:text-white hover:bg-red-600'}`}
+                  >
+                    {opt}
+                  &lt;/button>
+                &lt;/li>
+              ))}
+            &lt;/ul>
+          &lt;/nav>
+        &lt;/div>
+        &lt;div className="h-1 bg-red-600 w-full" />
+      &lt;/header>
+
+      &lt;div className="p-4">
+        &lt;div className="flex items-center justify-center mete mb-4">
+          &lt;Select value={anioSeleccionado} onValueChange={setAnioSeleccionado}>
+            &lt;SelectTrigger className="w-48">
+              &lt;SelectValue placeholder="Año nacimiento" />
+            &lt;/SelectTrigger>
+            &lt;SelectContent>
+              {[...Array(22)].map((_, i) => {
+                const anio = 2021 - i;
+                return (
+                  &lt;SelectItem key={anio} value={String(anio)}>{anio}&lt;/SelectItem>
+                );
+              })}
+            &lt;/SelectContent>
+          &lt;/Select>
+
+          &lt;div className="flex justify-end my-4">
+  &lt;Button
+    onClick={() => setMostrarModalNuevo(true)}
+    className="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded shadow"
+  >
+    ➕ Nuevo Jugador en Seguimiento
+  &lt;/Button>
+&lt;/div>
+        &lt;/div>
+
+       &lt;div className="space-y-2">
+  {jugadores
+    .sort((a, b) => (a.valoracion || '').localeCompare(b.valoracion || '')) // Ordena A, luego B, luego C
+    .map(j => {
+      let bgColor = 'bg-white';
+      let borderColor = 'border-gray-300';
+      if (j.valoracion === 'A') {
+        bgColor = 'bg-green-50';
+        borderColor = 'border-green-600';
+      } else if (j.valoracion === 'B') {
+        bgColor = 'bg-amber-50';
+        borderColor = 'border-amber-500';
+      } else if (j.valoracion === 'C') {
+        bgColor = 'bg-red-50';
+        borderColor = 'border-red-600';
+      }
+
+      return (
+        &lt;Card
+          key={j.id}
+          className={`flex items-center justify-between p-4 shadow ${bgColor} border-l-4 ${borderColor} cursor-pointer hover:shadow-lg transition`}
+          onClick={() => setJugadorSeleccionado(j)}
+        >
+          &lt;div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 w-full">
+            &lt;div className="text-left w-full sm:w-1/4">
+              &lt;h3 className="text-base font-bold text-red-700 uppercase">{j.nombre_completo}&lt;/h3>
+              &lt;p className="text-sm text-gray-600">{j.club}&lt;/p>
+            &lt;/div>
+            &lt;div className="text-sm text-gray-700 w-full sm:w-3/4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              &lt;p>🎯 Posición: &lt;span className="font-medium">{j.posicion_principal}&lt;/span>&lt;/p>
+              &lt;p>🦶 Lateralidad: &lt;span className="font-medium">{j.lateralidad}&lt;/span>&lt;/p>
+              &lt;p>📞 Contacto: &lt;span className="font-medium">{j.contacto || '—'}&lt;/span>&lt;/p>
+              &lt;p className="font-bold">
+                Valoración: &lt;span className="text-lg">{j.valoracion}&lt;/span>
+              &lt;/p>
+            &lt;/div>
+          &lt;/div>
+        &lt;/Card>
+      );
+    })}
+&lt;/div>
+      &lt;/div>
+{mostrarModalNuevo &amp;&amp; (
+  &lt;div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+    &lt;div className="bg-white w-full max-w-xl rounded-lg shadow-lg p-6 relative">
+      {/* Botón cerrar */}
+      &lt;button
+        onClick={() => setMostrarModalNuevo(false)}
+        className="absolute top-4 right-4 text-xl text-gray-600 hover:text-black"
+      >
+        ✖
+      &lt;/button>
+
+      &lt;h2 className="text-xl font-bold text-red-700 mb-4 text-center">
+        ➕ Nuevo Jugador en Seguimiento
+      &lt;/h2>
+
+      &lt;form onSubmit={handleCrearJugador}>
+        &lt;div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Nombre completo */}
+&lt;div>
+  &lt;label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo *&lt;/label>
+  &lt;input
+    type="text"
+    value={nuevoJugador.nombre}
+    onChange={e => setNuevoJugador({ ...nuevoJugador, nombre: e.target.value })}
+    className="w-full px-3 py-2 border rounded shadow-sm"
+    required
+  />
+&lt;/div>
+
+{/* Club actual */}
+&lt;div>
+  &lt;label className="block text-sm font-medium text-gray-700 mb-1">Club actual *&lt;/label>
+  &lt;input
+    type="text"
+    value={nuevoJugador.club}
+    onChange={e => setNuevoJugador({ ...nuevoJugador, club: e.target.value })}
+    className="w-full px-3 py-2 border rounded shadow-sm"
+    required
+  />
+&lt;/div>
+
+{/* Lateralidad */}
+&lt;div>
+  &lt;label className="block text-sm font-medium text-gray-700 mb-1">Lateralidad&lt;/label>
+  &lt;select
+  value={nuevoJugador.lateralidad}
+  onChange={e => setNuevoJugador({ ...nuevoJugador, lateralidad: e.target.value })}
+  className="w-full px-3 py-2 border rounded shadow-sm"
+>
+  &lt;option value="">-- Selecciona lateralidad --&lt;/option>
+  &lt;option value="zurdo">Zurdo&lt;/option>
+  &lt;option value="diestro">Diestro&lt;/option>
+  
+&lt;/select>
+&lt;/div>
+
+{/* Posición principal */}
+&lt;div>
+  &lt;label className="block text-sm font-medium text-gray-700 mb-1">Posición principal *&lt;/label>
+  &lt;select
+  value={nuevoJugador.posicion}
+  onChange={e => setNuevoJugador({ ...nuevoJugador, posicion: e.target.value })}
+  className="w-full px-3 py-2 border rounded shadow-sm"
+  required
+>
+  &lt;option value="">-- Selecciona posición --&lt;/option>
+  {posiciones.map(pos => (
+    &lt;option key={pos} value={pos}>{pos}&lt;/option>
+  ))}
+&lt;/select>
+&lt;/div>
+
+{/* Teléfono */}
+&lt;div>
+  &lt;label className="block text-sm font-medium text-gray-700 mb-1">Teléfono de contacto&lt;/label>
+  &lt;input
+    type="tel"
+    value={nuevoJugador.contacto}
+    onChange={e => setNuevoJugador({ ...nuevoJugador, contacto: e.target.value })}
+    className="w-full px-3 py-2 border rounded shadow-sm"
+  />
+&lt;/div>
+
+{/* Valoración */}
+&lt;div>
+  &lt;label className="block text-sm font-medium text-gray-700 mb-1">Valoración *&lt;/label>
+  &lt;select
+  value={nuevoJugador.valoracion}
+  onChange={e => setNuevoJugador({ ...nuevoJugador, valoracion: e.target.value })}
+  className="w-full px-3 py-2 border rounded shadow-sm"
+  required
+>
+  &lt;option value="">-- Selecciona valoración --&lt;/option>
+  &lt;option value="A">A (Muy bueno)&lt;/option>
+  &lt;option value="B">B (Bueno)&lt;/option>
+  &lt;option value="C">C (Regular)&lt;/option>
+&lt;/select>
+&lt;/div>
+
+{/* Observaciones */}
+&lt;div className="sm:col-span-2">
+  &lt;label className="block text-sm font-medium text-gray-700 mb-1">Observaciones&lt;/label>
+  &lt;textarea
+    rows="3"
+    value={nuevoJugador.descripcion}
+    onChange={e => setNuevoJugador({ ...nuevoJugador, descripcion: e.target.value })}
+    className="w-full px-3 py-2 border rounded shadow-sm"
+  >&lt;/textarea>
+&lt;/div>
+        &lt;/div>
+
+        &lt;div className="mt-6 flex justify-center">
+          &lt;Button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+            Guardar Jugador
+          &lt;/Button>
+        &lt;/div>
+      &lt;/form>
+    &lt;/div>
+  &lt;/div>
+)}
+
+
+{jugadorSeleccionado &amp;&amp; (
+  &lt;div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    &lt;div className="relative bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-auto p-6">
+    &lt;button
+      className="absolute top-2 right-3 text-2xl text-gray-500 hover:text-black z-10"
+      onClick={() => setJugadorSeleccionado(null)}
+    >
+      ✖
+    &lt;/button>
+
+    &lt;h2 className="text-2xl font-bold text-red-700 mb-2">{jugadorSeleccionado.nombre_completo}&lt;/h2>
+    &lt;p>&lt;strong>Club:&lt;/strong> {jugadorSeleccionado.club}&lt;/p>
+    &lt;p>&lt;strong>Posición principal:&lt;/strong> {jugadorSeleccionado.posicion_principal}&lt;/p>
+    &lt;p>&lt;strong>Lateralidad:&lt;/strong> {jugadorSeleccionado.lateralidad}&lt;/p>
+    &lt;p>&lt;strong>Teléfono:&lt;/strong> {jugadorSeleccionado.contacto || '—'}&lt;/p>
+    &lt;p>&lt;strong>Valoración:&lt;/strong> {jugadorSeleccionado.valoracion}&lt;/p>
+    &lt;p className="mt-2">&lt;strong>Observaciones:&lt;/strong>&lt;/p>
+    &lt;p className="whitespace-pre-wrap text-gray-700">{jugadorSeleccionado.descripcion || 'Sin observaciones'}&lt;/p>
+
+    &lt;div className="mt-6 flex flex-col sm:flex-row justify-end gap-3">
+      &lt;Button
+        className="bg-blue-600 hover:bg-blue-700 text-white"
+        onClick={() => handleDescargarInforme(jugadorSeleccionado)}
+      >
+        📄 Descargar Informe PDF
+      &lt;/Button>
+
+      &lt;Button
+        className="bg-red-600 hover:bg-red-700 text-white"
+        onClick={() => handleEliminarJugador(jugadorSeleccionado.id)}
+      >
+        🗑 Eliminar Jugador
+      &lt;/Button>
+    &lt;/div>
+  &lt;/div>&lt;/div>
+)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      &lt;footer className="bg-gray-100 py-4 mt-auto">
+        &lt;div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
+          &lt;div className="text-sm text-gray-600 text-center md:text-left">
+            Página diseñada y en pruebas por Mario Briones
+          &lt;/div>
+          &lt;div className="flex justify-center">
+            &lt;img src={`${import.meta.env.BASE_URL}pie.png`} alt="Sello pie de página" className="h-16 w-auto" />
+          &lt;/div>
+          &lt;div className="flex flex-col items-center md:items-end text-sm text-gray-700">
+            &lt;span className="font-semibold text-black-700 mb-1">🎂 Próximos cumpleaños&lt;/span>
+            {proximosCumples.length === 0 ? (
+              &lt;span className="text-gray-500 italic">Sin cumpleaños cercanos&lt;/span>
+            ) : (
+              &lt;ul className="flex flex-col gap-1">
+                {proximosCumples.map((j, idx) => {
+                  const hoy = new Date();
+                  const esHoy = j.cumpleDate.getDate() === hoy.getDate() &amp;&amp; j.cumpleDate.getMonth() === hoy.getMonth();
+                  const dia = j.cumpleDate.getDate();
+                  const mes = j.cumpleDate.toLocaleDateString('es-ES', { month: 'long' });
+                  return (
+                    &lt;li
+                      key={idx}
+                      className={`text-center ${esHoy ? 'text-red-700 bg-yellow-100 px-2 py-1 rounded shadow animate-pulse' : 'text-gray-700'}`}
+                    >
+                      &lt;span className={`text-xs sm:text-sm font-medium ${esHoy ? 'font-bold' : ''}`}>
+                        {esHoy &amp;&amp; '🎉 '}
+                        {j.apodo?.toUpperCase() || 'SIN NOMBRE'} ({j.equipo?.toUpperCase() || 'SIN EQUIPO'}) – {dia} de {mes.charAt(0).toUpperCase() + mes.slice(1)}
+                        {esHoy &amp;&amp; ' 🎉'}
+                      &lt;/span>
+                    &lt;/li>
+                  );
+                })}
+              &lt;/ul>
+            )}
+          &lt;/div>
+        &lt;/div>
+      &lt;/footer>
+    &lt;/div>
+  );
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#Cuentas">Cuentas</a></li><li><a href="global.html#Inicio">Inicio</a></li><li><a href="global.html#Login">Login</a></li><li><a href="global.html#Metodologia">Metodologia</a></li><li><a href="global.html#Plantilla">Plantilla</a></li><li><a href="global.html#PreparacionFisica">PreparacionFisica</a></li><li><a href="global.html#RepFisico">RepFisico</a></li><li><a href="global.html#Repositorio">Repositorio</a></li><li><a href="global.html#Rpe">Rpe</a></li><li><a href="global.html#Scout">Scout</a></li><li><a href="global.html#Tests">Tests</a></li><li><a href="global.html#actualizarTest">actualizarTest</a></li><li><a href="global.html#agruparPorSemanaDia">agruparPorSemanaDia</a></li><li><a href="global.html#borrarRPE">borrarRPE</a></li><li><a href="global.html#datosBarraGeneral">datosBarraGeneral</a></li><li><a href="global.html#datosPorJugador">datosPorJugador</a></li><li><a href="global.html#deleteOne">deleteOne</a></li><li><a href="global.html#descargarPendientesPDF">descargarPendientesPDF</a></li><li><a href="global.html#eliminarTest">eliminarTest</a></li><li><a href="global.html#generarSemanasMes">generarSemanasMes</a></li><li><a href="global.html#guardarRPE">guardarRPE</a></li><li><a href="global.html#guardarTest">guardarTest</a></li><li><a href="global.html#handleBorrar">handleBorrar</a></li><li><a href="global.html#handleBorrarReunion">handleBorrarReunion</a></li><li><a href="global.html#handleCrearJugador">handleCrearJugador</a></li><li><a href="global.html#handleDelete">handleDelete</a></li><li><a href="global.html#handleDescargarInforme">handleDescargarInforme</a></li><li><a href="global.html#handleEliminarJugador">handleEliminarJugador</a></li><li><a href="global.html#handleLogin">handleLogin</a></li><li><a href="global.html#handleSubir">handleSubir</a></li><li><a href="global.html#handleUpload">handleUpload</a></li><li><a href="global.html#moveBulk">moveBulk</a></li><li><a href="global.html#obtenerPrecios">obtenerPrecios</a></li><li><a href="global.html#renderBloques">renderBloques</a></li><li><a href="global.html#saveJugador">saveJugador</a></li><li><a href="global.html#semanaTieneDatos">semanaTieneDatos</a></li><li><a href="global.html#subirGuiaBloque">subirGuiaBloque</a></li><li><a href="global.html#tieneRPE">tieneRPE</a></li><li><a href="global.html#toggleMes">toggleMes</a></li><li><a href="global.html#togglePago">togglePago</a></li><li><a href="global.html#transformarDatosParaGrafico">transformarDatosParaGrafico</a></li><li><a href="global.html#transformarTestIndividualParaGrafico">transformarTestIndividualParaGrafico</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 30 2025 12:54:18 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

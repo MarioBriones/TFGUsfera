@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Tests.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Tests.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Tests.jsx
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  Line,
+  ComposedChart,
+  LabelList,
+} from 'recharts';
+
+
+// Función auxiliar para generar slugs de nombres (para URLs de imágenes)
+function slugify(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-\u036f]/g, '') // elimina acentos
+    .replace(/\s+/g, '-')       // espacios a guiones
+    .replace(/[^\w-]/g, '');    // elimina caracteres especiales
+}
+
+/**
+ * Componente de gestión de tests físicos por equipo.
+ * @function Tests
+ * @returns {JSX.Element} Vista con formulario de creación, edición y comparación de tests
+ */
+export default function Tests() {
+  // Recuperamos el usuario del estado de navegación (pasado desde Inicio.jsx)
+  const { state } = useLocation();
+  const usuario = state?.usuario || {};
+  const navigate = useNavigate();
+
+  // Definimos el menú superior según rol (entrenador vs director/coordinador)
+  const opcionesEntrenador = [
+    'PLANTILLA', 'REPOSITORIO', 'METODOLOGÍA', 'PREP. FÍSICA', 'SCOUT', 
+  ];
+  const opcionesDirCoord = [
+    'PLANTILLAS', 'REPOSITORIO', 'METODOLOGÍA', 'PREP. FÍSICA', 'SCOUT', 'CUENTAS', 
+  ];
+  const opcionesMenu = ['director', 'coordinador'].includes(usuario.rol)
+    ? opcionesDirCoord
+    : opcionesEntrenador;
+
+  const opcionesSubmenu = [
+    { label: 'Tests', path: '/testsfisicos' },
+    { label: 'Repositorio', path: '/repositoriofisico' },
+    { label: 'Seguimiento Diario', path: '/rpe' },
+  ];
+
+  // Estado local: listado de equipos (solo para director/coordinador)
+  const [equipos, setEquipos] = useState([]);
+  // Equipo seleccionado en el desplegable
+  const [selectedTeam, setSelectedTeam] = useState(
+  ["coordinador", "director"].includes(usuario.rol) ? "juvenila" : usuario.equipo
+);
+
+const [mostrarFormulario, setMostrarFormulario] = useState(false);
+const toggleFormulario = () => setMostrarFormulario((prev) => !prev);
+
+const [tests, setTests] = useState([]);
+const [testsSeleccionados, setTestsSeleccionados] = useState([]);
+const [modoEdicion, setModoEdicion] = useState(null); // ID del test que se está editando
+const [edicionDatos, setEdicionDatos] = useState({});
+const [mostrarGrafica, setMostrarGrafica] = useState(false);
+const [datosComparacion, setDatosComparacion] = useState([]);
+const [testIndividual, setTestIndividual] = useState(null);
+const [mostrarGraficaIndividual, setMostrarGraficaIndividual] = useState(false);
+
+function slugifyTitulo(titulo) {
+  return titulo
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // elimina acentos
+    .replace(/\s+/g, "_")            // espacios por guiones bajos
+    .replace(/[^\w\-]/g, "");        // elimina caracteres especiales
+}
+
+
+
+// Para crear test
+const [nuevoTest, setNuevoTest] = useState({
+  titulo: '',
+  descripcion: '',
+  tipo: '',
+  fecha: '',
+});
+const [valores, setValores] = useState({});
+
+  // URL de avatar del usuario (fallback si no existe)
+  const fotoSrc = `${import.meta.env.BASE_URL}fotos/${slugify(usuario.nombre || 'avatar-blank')}.png`;
+
+// Cumpleaños pie de pagina
+  const [proximosCumples, setProximosCumples] = useState([]);
+  
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL}/cumples`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.success) return;
+  
+        const hoy = new Date();
+        const esCoordDir = ['coordinador', 'director'].includes(usuario.rol);
+        const miEquipo = usuario.equipo?.toLowerCase();
+  
+        // Filtramos por equipo si no es director ni coordinador
+        const jugadoresFiltrados = esCoordDir
+          ? data.jugadores
+          : data.jugadores.filter(j => j.equipo.toLowerCase() === miEquipo);
+  
+        const startOfToday = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const conCumple = jugadoresFiltrados
+    .map(j => {
+      const fechaNac = new Date(j.fecha_nacimiento);
+      const cumpleEsteAnio = new Date(hoy.getFullYear(), fechaNac.getMonth(), fechaNac.getDate());
+      if (cumpleEsteAnio &lt; startOfToday) cumpleEsteAnio.setFullYear(hoy.getFullYear() + 1);
+  
+      return {
+        ...j,
+        cumpleDate: cumpleEsteAnio,
+        diasParaCumple: Math.floor((cumpleEsteAnio - startOfToday) / (1000 * 60 * 60 * 24)),
+      };
+    })
+    .sort((a, b) => a.diasParaCumple - b.diasParaCumple)
+    .slice(0, 3);
+  
+        setProximosCumples(conCumple);
+      })
+      .catch(console.error);
+  }, [usuario]);
+
+  useEffect(() => {
+    if (["coordinador", "director"].includes(usuario.rol)) {
+      fetch(`${import.meta.env.VITE_API_URL}/equipos`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) {
+            const filtrados = data.equipos.filter((e) => e !== 'nada' &amp;&amp; e !== 'todo');
+            setEquipos(filtrados);
+            setSelectedTeam('todo');
+          }
+        });
+    }
+  }, [usuario.rol]);
+
+  useEffect(() => {
+  if (
+    ["coordinador", "director"].includes(usuario.rol) &amp;&amp;
+    (!selectedTeam || selectedTeam === "todo") &amp;&amp;
+    equipos.includes("juvenila")
+  ) {
+    setSelectedTeam("juvenila");
+  }
+}, [usuario.rol, selectedTeam, equipos]);
+
+const [jugadores, setJugadores] = useState([]);
+
+useEffect(() => {
+  if (!selectedTeam) return;
+
+  fetch(`${import.meta.env.VITE_API_URL}/jugadores/${selectedTeam}`)
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.success) {
+        setJugadores(data.jugadores);
+      }
+    })
+    .catch(console.error);
+}, [selectedTeam]);
+
+useEffect(() => {
+  if (!selectedTeam) return;
+  fetch(`${import.meta.env.VITE_API_URL}/tests/${selectedTeam}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        setTests(data.tests);
+      }
+    })
+    .catch(console.error);
+}, [selectedTeam]);
+
+
+/**
+ * Envía un nuevo test físico al backend con sus valores por jugador.
+ * @function guardarTest
+ * @async
+ * @returns {Promise&lt;void>}
+ */
+const guardarTest = async () => {
+  if (!nuevoTest.titulo || !nuevoTest.fecha) {
+    alert("Debes completar el título y la fecha del test.");
+    return;
+  }
+
+  // Validar que todos los jugadores tengan valor
+  const idsJugadores = jugadores.map(j => j.id);
+  const faltanValores = idsJugadores.some(id => !(id in valores));
+  if (faltanValores) {
+    alert("Debes asignar un valor a todos los jugadores. Si es 0, escribe 0.");
+    return;
+  }
+
+  const payload = {
+    ...nuevoTest,
+    equipo: selectedTeam,
+    creado_por: usuario.id,
+    resultados: idsJugadores.map((id) => ({
+      id_jugador: Number(id),
+      valor: parseFloat(valores[id]),
+    })),
+  };
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/tests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("Test guardado correctamente.");
+
+      // Reiniciar campos
+      setNuevoTest({ titulo: '', descripcion: '', tipo: '', fecha: '' });
+      setValores({});
+      setMostrarFormulario(false); // ⬅️ Cierra el formulario
+
+      // Recargar tests
+      const ref = await fetch(`${import.meta.env.VITE_API_URL}/tests/${selectedTeam}`);
+      const json = await ref.json();
+      if (json.success) setTests(json.tests);
+    } else {
+      alert("Error al guardar el test.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error al conectar con el servidor.");
+  }
+};
+
+/**
+ * Elimina un test físico del sistema.
+ * @function eliminarTest
+ * @async
+ * @param {number} id - ID del test a eliminar
+ * @returns {Promise&lt;void>}
+ */
+const eliminarTest = async (id) => {
+  if (!confirm('¿Seguro que quieres eliminar este test?')) return;
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/tests/${id}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json();
+    if (data.success) {
+      setTests((prev) => prev.filter((t) => t.id !== id));
+      setTestsSeleccionados((prev) => prev.filter((tId) => tId !== id));
+    } else {
+      alert('Error al eliminar test.');
+    }
+  } catch (err) {
+    console.error('Error al eliminar:', err);
+    alert('Error al conectar con el servidor.');
+  }
+};
+
+/**
+ * Actualiza un test físico existente con nuevos datos y valores.
+ * @function actualizarTest
+ * @async
+ * @param {object} test - Objeto del test modificado
+ * @returns {Promise&lt;void>}
+ */
+const actualizarTest = async (id) => {
+  const testOriginal = tests.find(t => t.id === id);
+
+  const payload = {
+    titulo: edicionDatos.titulo ?? testOriginal.titulo,
+    tipo: edicionDatos.tipo ?? testOriginal.tipo,
+    fecha: edicionDatos.fecha ?? testOriginal.fecha?.slice(0, 10),
+    descripcion: edicionDatos.descripcion ?? testOriginal.descripcion,
+    equipo: selectedTeam,
+    resultados: testOriginal.resultados.map((r) => ({
+  id_jugador: r.id_jugador,
+  valor: parseFloat(edicionDatos[`res_${r.id_jugador}`] ?? r.valor)
+}))
+  };
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/tests/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("Test actualizado.");
+      setModoEdicion(null);
+      setEdicionDatos({});
+      const ref = await fetch(`${import.meta.env.VITE_API_URL}/tests/${selectedTeam}`);
+      const json = await ref.json();
+      if (json.success) setTests(json.tests);
+    } else {
+      alert("Error al actualizar.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error de servidor.");
+  }
+};
+
+/**
+ * Convierte los resultados de múltiples tests en formato gráfico.
+ * @function transformarDatosParaGrafico
+ * @param {object[]} tests - Array de tests físicos con valores por jugador
+ * @returns {object[]} Datos transformados por jugador para comparar gráficamente
+ */
+function transformarDatosParaGrafico(tests) {
+  const jugadoresMap = {};
+
+  for (const test of tests) {
+    const slug = slugifyTitulo(test.titulo);
+    for (const res of test.resultados) {
+      const key = res.id_jugador;
+      if (!jugadoresMap[key]) {
+        jugadoresMap[key] = { jugador: res.apodo };
+      }
+      jugadoresMap[key][slug] = res.valor;
+    }
+  }
+
+  // Calcular la media correctamente
+for (const jugador of Object.values(jugadoresMap)) {
+  const entries = Object.entries(jugador);
+  
+
+  const valores = Object.entries(jugador)
+  .filter(([key, value]) => key !== "jugador" &amp;&amp; !isNaN(parseFloat(value)))
+  .map(([_, value]) => parseFloat(value));
+
+  
+
+  jugador.media = valores.length
+    ? parseFloat((valores.reduce((a, b) => a + b, 0) / valores.length).toFixed(2))
+    : null;
+}
+
+  
+  return Object.values(jugadoresMap);
+}
+
+/**
+ * Transforma un único test físico para mostrar sus datos en una gráfica.
+ * @function transformarTestIndividualParaGrafico
+ * @param {object} test - Test físico individual
+ * @returns {object[]} Lista de resultados por jugador
+ */
+function transformarTestIndividualParaGrafico(test) {
+  const slug = slugifyTitulo(test.titulo);
+
+  const datos = test.resultados.map(r => {
+    const valor = typeof r.valor === 'number' ? r.valor : parseFloat(r.valor);
+    return {
+      jugador: r.apodo,
+      [slug]: valor,
+      punto: valor, // usamos "punto" para trazar la línea
+    };
+  });
+
+  console.log("✅ Datos individuales transformados:", datos);
+  return datos;
+}
+
+///////////////////////
+  return (
+    &lt;div
+    className="relative flex flex-col min-h-screen bg-cover bg-center"
+    style={{
+      backgroundImage: `url(${import.meta.env.BASE_URL}central.png)`,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)', // suaviza el fondo como en Plantilla
+      backgroundBlendMode: 'lighten', // ajusta cómo se mezcla la imagen y el color
+    }}
+  >
+      {/* HEADER FIJO */}
+      &lt;header className="sticky top-0 z-50">
+        &lt;div className="h-1 bg-gray-400 w-full" />
+        &lt;div className="bg-gray-200">
+          &lt;div className="relative flex items-center justify-between w-full px-4 sm:px-6 lg:px-8 py-3">
+            {/* Escudo clicable vuelve al home */}
+            &lt;img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="Escudo Unionistas"
+              className="h-12 w-12 cursor-pointer flex-shrink-0"
+              onClick={() => navigate('/home', { state: { usuario } })}
+            />
+            {/* Título centrar con absolute para no alterar el flow */}
+            &lt;div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              &lt;h1
+                className="text-2xl sm:text-3xl font-bold text-gray-800 cursor-pointer hover:text-red-600 transition pointer-events-auto"
+                onClick={() => navigate('/home', { state: { usuario } })}
+              >
+                USFERA
+              &lt;/h1>
+              &lt;p className="text-sm sm:text-base text-gray-600">Preparación Física&lt;/p>
+            &lt;/div>
+            {/* Avatar y botón Cerrar Sesión */}
+                        &lt;div className="flex items-center space-x-2">
+                          &lt;img
+                            src={fotoSrc}
+                            alt={`Avatar de ${usuario.nombre}`}
+                            className="h-8 w-8 rounded-full object-cover border-2 border-white shadow-sm hidden sm:inline-block"
+                            onError={e => (e.currentTarget.src = `${import.meta.env.BASE_URL}fotos/avatar-blank.png`)}
+                          />
+                          &lt;Button
+                            variant="outline"
+                            className="bg-transparent border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition"
+                            onClick={() => navigate('/', { state: { usuario } })}
+                          >
+                            Cerrar Sesión
+                          &lt;/Button>
+                        &lt;/div>
+                      &lt;/div>
+                    &lt;/div>
+                   &lt;div className="h-px bg-gray-400 w-full" />
+                    &lt;div className="bg-red-50">
+                      &lt;nav className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+                        &lt;ul className="flex flex-wrap justify-center gap-2 sm:gap-4 py-2 text-sm">
+              {opcionesMenu.map(opt => (
+                &lt;li key={opt}>
+                  &lt;button
+                    onClick={() =>
+                      navigate(`/${opt.toLowerCase().replace(/\s+/g, '')}`, { state: { usuario } })
+                    }
+                    className={
+                      `px-3 py-1 rounded transition ` +
+                      (opt === 'PREP. FÍSICA'
+                        ? 'bg-gray-300 text-black'
+                        : 'text-gray-700 hover:text-white hover:bg-red-600')
+                    }
+                  >
+                    {opt}
+                  &lt;/button>
+                &lt;/li>
+              ))}
+            &lt;/ul>
+          &lt;/nav>
+        &lt;/div>
+        {/* línea divisoria roja */}
+        &lt;div className="h-1 bg-red-600 w-full" />
+
+        {/* Submenú con resaltado del activo */}
+&lt;div className="bg-red-100 py-2 shadow-inner">
+  &lt;div className="max-w-screen-xl mx-auto px-4 flex justify-center gap-4">
+    {opcionesSubmenu.map((opt) => (
+      &lt;Button
+        key={opt.label}
+        variant={location.pathname.includes(opt.path) ? "default" : "ghost"}
+        className={
+          location.pathname.includes(opt.path)
+            ? "bg-red-600 text-white font-semibold shadow"
+            : "text-red-800 hover:bg-red-200 font-semibold"
+        }
+        onClick={() => navigate(opt.path, { state: { usuario } })}
+      >
+        {opt.label}
+      &lt;/Button>
+    ))}
+  &lt;/div>
+&lt;/div>
+
+{/* Selector de equipo si es coordinador/director */}
+{["coordinador", "director"].includes(usuario.rol) &amp;&amp; (
+  &lt;div className="bg-red-50 py-4 flex justify-center">
+    &lt;Select
+      value={selectedTeam}
+      onValueChange={setSelectedTeam}
+    >
+      &lt;SelectTrigger className="w-64">
+        &lt;SelectValue placeholder="Selecciona equipo" />
+      &lt;/SelectTrigger>
+      &lt;SelectContent>
+        {equipos
+          .filter((eq) => !["nada", "todo"].includes(eq.toLowerCase()))
+          .map((eq) => (
+            &lt;SelectItem key={eq} value={eq}>
+              {eq.toUpperCase()}
+            &lt;/SelectItem>
+          ))}
+      &lt;/SelectContent>
+    &lt;/Select>
+  &lt;/div>
+)}
+      &lt;/header>
+
+
+
+
+
+
+
+&lt;main className="flex-grow p-6 bg-gradient-to-b from-red-50 to-white/90">
+  {/* BOTÓN MOSTRAR FORMULARIO */}
+  &lt;div className="max-w-4xl mx-auto mb-6">
+    &lt;Button
+      className="bg-red-600 hover:bg-red-700 text-white"
+      onClick={toggleFormulario}
+    >
+      {mostrarFormulario ? "🔽 Ocultar formulario" : "➕ Crear nuevo test físico"}
+    &lt;/Button>
+  &lt;/div>
+  {testsSeleccionados.length >= 2 &amp;&amp; (
+  &lt;div className="text-center my-4">
+    &lt;Button
+      className="bg-blue-600 text-white hover:bg-blue-700"
+      onClick={async () => {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/comparartests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: testsSeleccionados }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setDatosComparacion(data.tests);
+            setMostrarGrafica(true);
+          } else {
+            alert("No se pudo cargar la comparación.");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Error al conectar con el servidor.");
+        }
+      }}
+    >
+      📊 Comparar {testsSeleccionados.length} tests
+    &lt;/Button>
+  &lt;/div>
+
+)}
+  {/* FORMULARIO */}
+  {mostrarFormulario &amp;&amp; (
+    &lt;div className="max-w-6xl mx-auto bg-white shadow rounded-xl p-6">
+      &lt;h2 className="text-xl font-bold text-red-700">➕ Crear nuevo test físico&lt;/h2>
+
+      &lt;div className="flex flex-col">
+  &lt;label className="text-sm font-semibold text-gray-700 mb-1">
+          Título *&lt;/label>
+          &lt;input
+            type="text"
+            value={nuevoTest.titulo}
+            onChange={(e) => setNuevoTest((prev) => ({ ...prev, titulo: e.target.value }))}
+            className="mt-1 w-full border rounded px-3 py-1"
+            required
+          />
+        
+
+        &lt;label className="block">
+          Tipo de test (opcional)
+          &lt;input
+            type="text"
+            value={nuevoTest.tipo}
+            onChange={(e) => setNuevoTest((prev) => ({ ...prev, tipo: e.target.value }))}
+            className="mt-1 w-full border rounded px-3 py-1"
+          />
+        &lt;/label>
+
+        &lt;label className="block col-span-2">
+          Descripción (opcional)
+          &lt;textarea
+            value={nuevoTest.descripcion}
+            onChange={(e) => setNuevoTest((prev) => ({ ...prev, descripcion: e.target.value }))}
+            className="mt-1 w-full border rounded px-3 py-2"
+            rows={3}
+          />
+        &lt;/label>
+
+        &lt;label className="block">
+          Fecha de realización *
+          &lt;input
+            type="date"
+            value={nuevoTest.fecha}
+            onChange={(e) => setNuevoTest((prev) => ({ ...prev, fecha: e.target.value }))}
+            className="mt-1 w-full border rounded px-3 py-1"
+            required
+          />
+        &lt;/label>
+      &lt;/div>
+
+      &lt;div className="mt-6">
+        &lt;h3 className="text-lg font-semibold text-gray-700 mb-2">Valores por jugador&lt;/h3>
+        &lt;div className="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-6 py-2">
+          {jugadores.map((j) => (
+            &lt;label key={j.id} className="block">
+              {j.apodo?.toUpperCase()} ({j.nombre_completo})
+              &lt;input
+                type="number"
+                step="0.01"
+                placeholder="Ej: 6.42"
+                value={valores[j.id] || ''}
+                onChange={(e) =>
+                  setValores((prev) => ({ ...prev, [j.id]: e.target.value }))
+                }
+                className="mt-1 w-full border rounded px-3 py-1"
+              />
+            &lt;/label>
+          ))}
+        &lt;/div>
+      &lt;/div>
+
+      &lt;div className="flex justify-end mt-4">
+        &lt;Button
+          className="bg-red-600 hover:bg-red-700 text-white"
+          onClick={guardarTest}
+        >
+          💾 Guardar test
+        &lt;/Button>
+      &lt;/div>
+    &lt;/div>
+  )}
+
+  {/* LISTADO DE TESTS */}
+  &lt;div className="max-w-4xl mx-auto bg-white shadow rounded-xl p-6">
+    &lt;h2 className="text-xl font-bold text-gray-800 mb-4">📋 Tests&lt;/h2>
+    {/* Aquí irán los tests cuando los carguemos */}
+    {tests.length === 0 ? (
+  &lt;p className="text-gray-500 italic">Aún no hay tests creados.&lt;/p>
+) : (
+  &lt;div className="space-y-4">
+    {tests.map((test) => (
+      &lt;Card key={test.id}>
+        &lt;CardHeader className="flex justify-between items-center">
+  &lt;div className="flex items-center gap-4">
+    &lt;input
+      type="checkbox"
+      className="w-6 h-6 accent-red-600"
+      checked={testsSeleccionados.includes(test.id)}
+      onChange={(e) =>
+        setTestsSeleccionados((prev) =>
+          e.target.checked
+            ? [...prev, test.id]
+            : prev.filter((id) => id !== test.id)
+        )
+      }
+    />
+    &lt;CardTitle className="text-red-800 text-lg font-semibold">
+      {test.titulo}
+    &lt;/CardTitle>
+  &lt;/div>
+  &lt;div className="flex space-x-2">
+    &lt;Button size="sm" onClick={() => setModoEdicion(test.id)}>✏️&lt;/Button>
+&lt;Button size="sm" variant="destructive" onClick={() => eliminarTest(test.id)}>🗑️&lt;/Button>
+&lt;Button size="sm" variant="outline" onClick={() => {
+  setTestIndividual(test);
+  setMostrarGraficaIndividual(true);
+}}>📊&lt;/Button>
+  &lt;/div>
+&lt;/CardHeader>
+        &lt;CardContent>
+          &lt;p>&lt;strong>Tipo:&lt;/strong> {test.tipo || '—'}&lt;/p>
+          &lt;p>&lt;strong>Fecha:&lt;/strong> {new Date(test.fecha).toLocaleDateString()}&lt;/p>
+          &lt;p>&lt;strong>Descripción:&lt;/strong> {test.descripcion || '—'}&lt;/p>
+        &lt;/CardContent>
+        {modoEdicion === test.id &amp;&amp; (
+  &lt;div className="p-4 border-t mt-2 space-y-2 bg-red-50 rounded">
+    &lt;label className="block">
+      Título:
+      &lt;input
+        className="w-full border px-2 py-1 rounded"
+        value={edicionDatos.titulo || test.titulo}
+        onChange={(e) =>
+          setEdicionDatos((prev) => ({ ...prev, titulo: e.target.value }))
+        }
+      />
+    &lt;/label>
+
+    &lt;label className="block">
+      Tipo:
+      &lt;input
+        className="w-full border px-2 py-1 rounded"
+        value={edicionDatos.tipo || test.tipo || ''}
+        onChange={(e) =>
+          setEdicionDatos((prev) => ({ ...prev, tipo: e.target.value }))
+        }
+      />
+    &lt;/label>
+
+    &lt;label className="block">
+      Fecha:
+      &lt;input
+        type="date"
+        className="w-full border px-2 py-1 rounded"
+        value={edicionDatos.fecha || test.fecha?.slice(0, 10)}
+        onChange={(e) =>
+          setEdicionDatos((prev) => ({ ...prev, fecha: e.target.value }))
+        }
+      />
+    &lt;/label>
+
+    &lt;label className="block">
+      Descripción:
+      &lt;textarea
+        className="w-full border px-2 py-1 rounded"
+        value={edicionDatos.descripcion || test.descripcion || ''}
+        onChange={(e) =>
+          setEdicionDatos((prev) => ({ ...prev, descripcion: e.target.value }))
+        }
+      />
+    &lt;/label>
+&lt;h4 className="text-lg font-semibold mt-4">✍️ Marcas por jugador&lt;/h4>
+    &lt;div className="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-6 mt-2">
+      {test.resultados?.map((r) => (
+        &lt;label key={r.id_jugador} className="block">
+          {r.apodo?.toUpperCase() || 'SIN NOMBRE'}
+          &lt;input
+            type="number"
+            step="0.01"
+            value={edicionDatos[`res_${r.id_jugador}`] ?? r.valor}
+            onChange={(e) =>
+              setEdicionDatos((prev) => ({
+                ...prev,
+                [`res_${r.id_jugador}`]: e.target.value
+              }))
+            }
+            className="mt-1 w-full border rounded px-3 py-1"
+          />
+        &lt;/label>
+      ))}
+    &lt;/div>
+    &lt;div className="flex justify-end gap-2">
+      &lt;Button onClick={() => actualizarTest(test.id)} className="bg-gray-700 text-white">
+        Guardar
+      &lt;/Button>
+      &lt;Button onClick={() => setModoEdicion(null)} className="bg-gray-700 text-white" >
+        Cancelar
+      &lt;/Button>
+    &lt;/div>
+  &lt;/div>
+)}
+      &lt;/Card>
+    ))}
+  &lt;/div>
+)}
+  &lt;/div>
+  {testsSeleccionados.length >= 2 &amp;&amp; (
+  &lt;div className="text-center my-4">
+    &lt;Button
+      className="bg-blue-600 text-white hover:bg-blue-700"
+      onClick={async () => {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/comparartests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: testsSeleccionados }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setDatosComparacion(data.tests);
+            setMostrarGrafica(true);
+          } else {
+            alert("No se pudo cargar la comparación.");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Error al conectar con el servidor.");
+        }
+      }}
+    >
+      📊 Comparar {testsSeleccionados.length} tests
+    &lt;/Button>
+  &lt;/div>
+)}
+
+{mostrarGrafica &amp;&amp; (
+  &lt;div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
+    &lt;div className="bg-white w-full max-w-6xl rounded-xl shadow-xl p-6 relative">
+      {/* Botón cerrar */}
+      &lt;button
+        onClick={() => setMostrarGrafica(false)}
+        className="absolute top-4 right-4 text-xl text-gray-700 hover:text-black"
+      >
+        ✖
+      &lt;/button>
+
+      &lt;h3 className="text-xl font-bold text-red-700 mb-4">📈 Resultados comparativos &lt;/h3>
+
+      &lt;div className="w-full h-[500px]">
+&lt;ResponsiveContainer width="100%" height="100%">
+  &lt;ComposedChart data={transformarDatosParaGrafico(datosComparacion)}>
+    &lt;XAxis dataKey="jugador" />
+    &lt;YAxis />
+    &lt;Tooltip />
+    &lt;Legend />
+
+    {datosComparacion.map((t, idx) => (
+      &lt;Bar
+  key={t.id}
+  dataKey={slugifyTitulo(t.titulo)}
+  name={t.titulo} // así aparece bonito en la leyenda
+  fill={`hsl(${idx * 90}, 70%, 50%)`}
+/>
+    ))}
+
+    &lt;Line
+      type="monotone"
+      dataKey="media"
+      stroke="#000"
+      strokeWidth={3}
+      dot={{ r: 4 }}
+      activeDot={{ r: 6 }}
+      name="Evolución media"
+    />
+  &lt;/ComposedChart>
+&lt;/ResponsiveContainer>
+&lt;/div>
+    &lt;/div>
+  &lt;/div>
+)}
+
+{mostrarGraficaIndividual &amp;&amp; testIndividual &amp;&amp; (
+  &lt;div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
+    &lt;div className="bg-white w-full max-w-4xl rounded-xl shadow-xl p-6 relative">
+      &lt;button
+        onClick={() => setMostrarGraficaIndividual(false)}
+        className="absolute top-4 right-4 text-xl text-gray-700 hover:text-black"
+      >
+        ✖
+      &lt;/button>
+
+      &lt;h3 className="text-xl font-bold text-red-700 mb-4">📈 {testIndividual.titulo}&lt;/h3>
+
+      &lt;div className="w-full h-[500px]">
+        &lt;ResponsiveContainer width="100%" height="100%">
+          &lt;ComposedChart data={transformarTestIndividualParaGrafico(testIndividual)}>
+            &lt;XAxis dataKey="jugador" />
+            &lt;YAxis />
+            &lt;Tooltip />
+            &lt;Legend />
+
+            {/* Columna rojo claro */}
+            &lt;Bar
+              dataKey={slugifyTitulo(testIndividual.titulo)}
+              fill="#ff7f7f"
+              name={testIndividual.titulo}
+            />
+
+            {/* Línea roja con puntos y etiqueta */}
+            &lt;Line
+              type="monotone"
+              dataKey="punto"
+              stroke="#d00000"
+              strokeWidth={2}
+              dot={{ r: 4, fill: '#d00000' }}
+              activeDot={{ r: 6 }}
+              name="Valor"
+              legendType="line"
+            >
+              &lt;LabelList
+                dataKey="punto"
+                position="top"
+                style={{ fill: 'black', fontWeight: 'bold', textShadow: '1px 1px 1px white' }}
+                formatter={(v) => v?.toFixed?.(2)}
+              />
+            &lt;/Line>
+          &lt;/ComposedChart>
+        &lt;/ResponsiveContainer>
+      &lt;/div>
+    &lt;/div>
+  &lt;/div>
+)}
+
+&lt;/main>
+
+
+
+
+      {/* ——— FOOTER ——— */}
+      &lt;footer className="bg-gray-100 py-4">
+  &lt;div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
+    {/* Izquierda */}
+    &lt;div className="text-sm text-gray-600 text-center md:text-left">
+      Página diseñada y en pruebas por Mario Briones
+    &lt;/div>
+
+    {/* Centro */}
+    &lt;div className="flex justify-center">
+      &lt;img
+        src={`${import.meta.env.BASE_URL}pie.png`}
+        alt="Sello pie de página"
+        className="h-16 w-auto"
+      />
+    &lt;/div>
+
+    {/* Derecha: Cumples */}
+    &lt;div className="flex flex-col items-center md:items-end text-sm text-gray-700">
+      &lt;span className="font-semibold text-black-700  mb-1">
+        🎂 Próximos cumpleaños
+      &lt;/span>
+      {proximosCumples.length === 0 ? (
+        &lt;span className="text-gray-500 italic">Sin cumpleaños cercanos&lt;/span>
+      ) : (
+        &lt;ul className="flex flex-col gap-1">
+          {proximosCumples.map((j, idx) => {
+            const hoy = new Date();
+            const esHoy =
+              j.cumpleDate.getDate() === hoy.getDate() &amp;&amp;
+              j.cumpleDate.getMonth() === hoy.getMonth();
+            const dia = j.cumpleDate.getDate();
+            const mes = j.cumpleDate.toLocaleDateString('es-ES', { month: 'long' });
+
+            return (
+  &lt;li
+  key={idx}
+  className={`text-center ${
+    esHoy
+      ? 'text-red-700 bg-yellow-100 px-2 py-1 rounded shadow animate-pulse'
+      : 'text-gray-700'
+  }`}
+>
+  &lt;span className={`text-xs sm:text-sm font-medium ${esHoy ? 'font-bold' : ''}`}>
+    {esHoy &amp;&amp; '🎉 '}
+    {j.apodo?.toUpperCase() || 'SIN NOMBRE'} ({j.equipo?.toUpperCase() || 'SIN EQUIPO'}) – {dia} de {mes.charAt(0).toUpperCase() + mes.slice(1)}
+    {esHoy &amp;&amp; ' 🎉'}
+  &lt;/span>
+&lt;/li>
+);
+          })}
+        &lt;/ul>
+      )}
+    &lt;/div>
+  &lt;/div>
+&lt;/footer>
+    &lt;/div>
+  );
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#Cuentas">Cuentas</a></li><li><a href="global.html#Inicio">Inicio</a></li><li><a href="global.html#Login">Login</a></li><li><a href="global.html#Metodologia">Metodologia</a></li><li><a href="global.html#Plantilla">Plantilla</a></li><li><a href="global.html#PreparacionFisica">PreparacionFisica</a></li><li><a href="global.html#RepFisico">RepFisico</a></li><li><a href="global.html#Repositorio">Repositorio</a></li><li><a href="global.html#Rpe">Rpe</a></li><li><a href="global.html#Scout">Scout</a></li><li><a href="global.html#Tests">Tests</a></li><li><a href="global.html#actualizarTest">actualizarTest</a></li><li><a href="global.html#agruparPorSemanaDia">agruparPorSemanaDia</a></li><li><a href="global.html#borrarRPE">borrarRPE</a></li><li><a href="global.html#datosBarraGeneral">datosBarraGeneral</a></li><li><a href="global.html#datosPorJugador">datosPorJugador</a></li><li><a href="global.html#deleteOne">deleteOne</a></li><li><a href="global.html#descargarPendientesPDF">descargarPendientesPDF</a></li><li><a href="global.html#eliminarTest">eliminarTest</a></li><li><a href="global.html#generarSemanasMes">generarSemanasMes</a></li><li><a href="global.html#guardarRPE">guardarRPE</a></li><li><a href="global.html#guardarTest">guardarTest</a></li><li><a href="global.html#handleBorrar">handleBorrar</a></li><li><a href="global.html#handleBorrarReunion">handleBorrarReunion</a></li><li><a href="global.html#handleCrearJugador">handleCrearJugador</a></li><li><a href="global.html#handleDelete">handleDelete</a></li><li><a href="global.html#handleDescargarInforme">handleDescargarInforme</a></li><li><a href="global.html#handleEliminarJugador">handleEliminarJugador</a></li><li><a href="global.html#handleLogin">handleLogin</a></li><li><a href="global.html#handleSubir">handleSubir</a></li><li><a href="global.html#handleUpload">handleUpload</a></li><li><a href="global.html#moveBulk">moveBulk</a></li><li><a href="global.html#obtenerPrecios">obtenerPrecios</a></li><li><a href="global.html#renderBloques">renderBloques</a></li><li><a href="global.html#saveJugador">saveJugador</a></li><li><a href="global.html#semanaTieneDatos">semanaTieneDatos</a></li><li><a href="global.html#subirGuiaBloque">subirGuiaBloque</a></li><li><a href="global.html#tieneRPE">tieneRPE</a></li><li><a href="global.html#toggleMes">toggleMes</a></li><li><a href="global.html#togglePago">togglePago</a></li><li><a href="global.html#transformarDatosParaGrafico">transformarDatosParaGrafico</a></li><li><a href="global.html#transformarTestIndividualParaGrafico">transformarTestIndividualParaGrafico</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 30 2025 12:54:18 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

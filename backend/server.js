@@ -160,8 +160,14 @@ const storageMetodologia = multer.diskStorage({
 });
 const uploadMetodologia = multer({ storage: storageMetodologia });
 
-
-// LOGIN con bcrypt.
+/**
+ * Autenticación de usuario mediante email y contraseña.
+ * @function login
+ * @route POST /login
+ * @param {string} email - Email del usuario
+ * @param {string} clave - Contraseña del usuario
+ * @returns {object} Usuario autenticado (sin contraseña)
+ */
 app.post('/login', loginLimiter, async (req, res) => {
   const { email, clave } = req.body;
 
@@ -188,7 +194,13 @@ app.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
-// Obtener usuarios por rol: /usuarios?rol=entrenador
+/**
+ * Obtiene usuarios por rol.
+ * @function getUsuariosPorRol
+ * @route GET /usuarios?rol={rol}
+ * @param {string} rol - Rol del usuario
+ * @returns {object[]} Lista de usuarios con ese rol
+ */
 app.get('/usuarios', async (req, res) => {
   const rol = req.query.rol;
   try {
@@ -202,7 +214,13 @@ app.get('/usuarios', async (req, res) => {
     res.status(500).json({ success: false, error: 'Error al listar usuarios' });
   }
 });
-// Obtener todos los equipos desde el enum equipo_type
+
+/**
+ * Obtiene todos los equipos definidos en el enum 'equipo_tipo'.
+ * @function getEquipos
+ * @route GET /equipos
+ * @returns {string[]} Lista de nombres de equipo
+ */
 app.get('/equipos', async (req, res) => {
   try {
     const resultado = await pool.query(
@@ -219,7 +237,13 @@ app.get('/equipos', async (req, res) => {
 //  RUTAS DE TAREAS
 // =======================
 
-// 1) Listar tareas de un usuario (GET /tareas/:asignado_para)
+/**
+ * Lista tareas asignadas a un usuario específico.
+ * @function getTareasAsignadas
+ * @route GET /tareas/:asignado_para
+ * @param {string} asignado_para - Email del usuario
+ * @returns {object[]} Lista de tareas asignadas
+ */
 app.get('/tareas/:asignado_para', async (req, res) => {
   const asignadoPara = parseInt(req.params.asignado_para, 10);
 
@@ -247,7 +271,13 @@ app.get('/tareas/:asignado_para', async (req, res) => {
   }
 });
 
-// 1.2) Listar tareas que yo creé (asignadas a otros)
+/**
+ * Lista tareas creadas por un usuario específico.
+ * @function getTareasCreadas
+ * @route GET /tareas/creadas/:creador
+ * @param {string} creador - Email del creador
+ * @returns {object[]} Lista de tareas creadas
+ */
 app.get('/tareas/creadas/:creador', async (req, res) => {
   const creador = parseInt(req.params.creador, 10);
   try {
@@ -276,14 +306,13 @@ app.get('/tareas/creadas/:creador', async (req, res) => {
   }
 });
 
-// 2) Crear nueva tarea (POST /tareas)
-//    Body esperado:
-//    {
-//      descripcion: "Texto",
-//      asignado_para: 3,        // opcional: si no se envía, lo asignamos al mismo creador
-//      creado_por: 5,           // id del usuario que crea
-//      limite: "2025-06-01"     // opcional, string en formato YYYY-MM-DD
-//    }
+/**
+ * Crea una nueva tarea.
+ * @function crearTarea
+ * @route POST /tareas
+ * @param {object} tarea - Datos de la tarea
+ * @returns {object} Tarea creada
+ */
 app.post('/tareas', async (req, res) => {
   const { descripcion, asignado_para, creado_por, limite } = req.body;
   const asignadoPara = asignado_para || creado_por;
@@ -302,8 +331,14 @@ app.post('/tareas', async (req, res) => {
   }
 });
 
-// 3) Marcar o desmarcar tarea (PATCH /tareas/:id)
-//    Body esperado: { completado: true|false }
+/**
+ * Marca o desmarca una tarea como completada.
+ * @function actualizarTarea
+ * @route PATCH /tareas/:id
+ * @param {number} id - ID de la tarea
+ * @param {boolean} completada - Estado de finalización
+ * @returns {object} Tarea actualizada
+ */
 app.patch('/tareas/:id', async (req, res) => {
   const tareaId = parseInt(req.params.id, 10);
   const { completado } = req.body;
@@ -326,7 +361,13 @@ app.patch('/tareas/:id', async (req, res) => {
   }
 });
 
-// 4) Eliminar una tarea completada (DELETE /tareas/:id)
+/**
+ * Elimina una tarea completada.
+ * @function eliminarTarea
+ * @route DELETE /tareas/:id
+ * @param {number} id - ID de la tarea
+ * @returns {object} Resultado de la eliminación
+ */
 app.delete('/tareas/:id', async (req, res) => {
   const tareaId = parseInt(req.params.id, 10);
   try {
@@ -351,8 +392,13 @@ app.delete('/tareas/:id', async (req, res) => {
 // =======================
 
 
-
-// --- RUTA GET para listar archivos por equipo o TODOS ---
+/**
+ * Lista archivos del repositorio por equipo o todos.
+ * @function getRepositorio
+ * @route GET /repositorio/:equipo
+ * @param {string} equipo - Nombre del equipo o 'todo'
+ * @returns {object[]} Lista de archivos
+ */
 app.get('/repositorio/:equipo', async (req, res) => {
   let { equipo } = req.params;
   try {
@@ -387,7 +433,13 @@ app.get('/repositorio/:equipo', async (req, res) => {
   }
 });
 
-// --- RUTA POST para subir PDF al repositorio ---
+/**
+ * Sube un archivo PDF al repositorio semanal.
+ * @function subirArchivoRepositorio
+ * @route POST /repositorio
+ * @param {file} archivo - Archivo PDF
+ * @returns {object} Información del archivo subido
+ */
 app.post('/repositorio', uploadRepoSemanal.single('pdf'), async (req, res) => {
   let { equipo, semana, dia, creado_por } = req.body;
 
@@ -438,7 +490,13 @@ app.post('/repositorio', uploadRepoSemanal.single('pdf'), async (req, res) => {
 });
 
 
-// Eliminar un archivo del repositorio (DELETE /repositorio)
+/**
+ * Elimina un archivo del repositorio.
+ * @function eliminarArchivoRepositorio
+ * @route DELETE /repositorio
+ * @param {object} datos - Información para eliminar el archivo
+ * @returns {object} Resultado de la operación
+ */
 app.delete('/repositorio', async (req, res) => {
   const { equipo, semana, dia } = req.body;
   try {
@@ -475,7 +533,13 @@ app.delete('/repositorio', async (req, res) => {
 
 // --- RUTAS DE JUGADORES ---
 
-// 1) Listar jugadores de un equipo (GET /jugadores/:equipo)
+/**
+ * Lista jugadores por equipo o todos.
+ * @function getJugadores
+ * @route GET /jugadores/:equipo
+ * @param {string} equipo - Nombre del equipo o 'todo'
+ * @returns {object[]} Lista de jugadores
+ */
 app.get('/jugadores/:equipo', async (req, res) => {
   const equipo = req.params.equipo;
   try {
@@ -495,9 +559,13 @@ app.get('/jugadores/:equipo', async (req, res) => {
   }
 });
 
-// 2) Crear jugador (POST /jugadores)
-// RUTA POST para crear jugador (con imagen)
-// --- DESPUÉS: así debe quedar ---
+/**
+ * Crea un nuevo jugador (con imagen).
+ * @function crearJugador
+ * @route POST /jugadores
+ * @param {object} jugador - Datos del jugador
+ * @returns {object} ID del jugador creado
+ */
 app.post('/jugadores', uploadJug.single('imagen'), async (req, res) => {
   // 1) Extraemos campos obligatorios del body
   const {
@@ -590,8 +658,14 @@ app.post('/jugadores', uploadJug.single('imagen'), async (req, res) => {
   }
 });
 
-
-// 3) RUTA PATCH para editar jugador (sin actualizar posiciones_secundarias)
+/**
+ * Edita un jugador existente.
+ * @function editarJugador
+ * @route PATCH /jugadores/:id
+ * @param {number} id - ID del jugador
+ * @param {object} datos - Nuevos datos del jugador
+ * @returns {object} Resultado de la edición
+ */
 app.patch('/jugadores/:id', uploadJug.single('imagen'), async (req, res) => {
   // 1) Extraemos campos obligatorios del body
   const {
@@ -727,8 +801,13 @@ app.patch('/jugadores/:id', uploadJug.single('imagen'), async (req, res) => {
   }
 });
 
-
-// 4) Eliminar jugador (DELETE /jugadores/:id)
+/**
+ * Elimina un jugador (y borra resultados asociados).
+ * @function eliminarJugador
+ * @route DELETE /jugadores/:id
+ * @param {number} id - ID del jugador
+ * @returns {object} Resultado de la eliminación
+ */
 app.delete('/jugadores/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
 
@@ -752,7 +831,13 @@ app.delete('/jugadores/:id', async (req, res) => {
   }
 });
 
-// 5) Mover varios jugadores (PATCH /jugadores/mover). AL mover hay que gestionar el movimiento tambien en cuotas, tests...
+/**
+ * Mueve varios jugadores a otro equipo.
+ * @function moverJugadores
+ * @route PATCH /jugadores-mover-masivo
+ * @param {object} datos - Lista de jugadores e info de destino
+ * @returns {object} Resultado del cambio
+ */
 app.patch('/jugadores-mover-masivo', async (req, res) => {
   let { ids, nuevoEquipo } = req.body;
 
@@ -802,8 +887,12 @@ app.patch('/jugadores-mover-masivo', async (req, res) => {
   }
 });
 
-//Cumpleaños en el pie de página
-
+/**
+ * Obtiene jugadores con cumpleaños registrados.
+ * @function getCumpleaneros
+ * @route GET /cumples
+ * @returns {object[]} Lista de jugadores con cumpleaños
+ */
 app.get('/cumples', async (req, res) => {
   try {
     const resultado = await pool.query(`
@@ -821,7 +910,13 @@ app.get('/cumples', async (req, res) => {
 //TESTS//
 ///////////////////////
 
-// 1) CREAR TEST
+/**
+ * Crea un nuevo test físico.
+ * @function crearTest
+ * @route POST /tests
+ * @param {object} test - Datos del test físico
+ * @returns {object} ID del test creado
+ */
 app.post('/tests', async (req, res) => {
   const { titulo, descripcion, tipo, fecha, equipo, creado_por, resultados } = req.body;
 
@@ -856,8 +951,14 @@ app.post('/tests', async (req, res) => {
   }
 });
 
-
-// 2) EDITAR TEST
+/**
+ * Edita un test físico y sus resultados.
+ * @function editarTest
+ * @route PATCH /tests/:id
+ * @param {number} id - ID del test
+ * @param {object} datos - Nuevos datos del test
+ * @returns {object} Resultado de la edición
+ */
 app.patch('/tests/:id', async (req, res) => {
   const id = req.params.id;
   const { titulo, descripcion, tipo, fecha, equipo, resultados } = req.body;
@@ -896,7 +997,13 @@ app.patch('/tests/:id', async (req, res) => {
   }
 });
 
-// 3) BORRAR TEST
+/**
+ * Elimina un test físico.
+ * @function eliminarTest
+ * @route DELETE /tests/:id
+ * @param {number} id - ID del test
+ * @returns {object} Resultado de la eliminación
+ */
 app.delete('/tests/:id', async (req, res) => {
   const id = req.params.id;
 
@@ -909,7 +1016,13 @@ app.delete('/tests/:id', async (req, res) => {
   }
 });
 
-// 4) OBTENER TESTS POR EQUIPO (con resultados incluidos)
+/**
+ * Obtiene todos los tests de un equipo con resultados.
+ * @function getTestsPorEquipo
+ * @route GET /tests/:equipo
+ * @param {string} equipo - Nombre del equipo
+ * @returns {object[]} Lista de tests físicos
+ */
 app.get('/tests/:equipo', async (req, res) => {
   const { equipo } = req.params;
 
@@ -939,8 +1052,13 @@ app.get('/tests/:equipo', async (req, res) => {
   }
 });
 
-// 5) COMPARAR TESTS
-//  Devuelve datos de varios tests con resultados y apodos
+/**
+ * Compara múltiples tests seleccionados.
+ * @function compararTests
+ * @route POST /comparartests
+ * @param {number[]} ids - IDs de los tests a comparar
+ * @returns {object[]} Datos combinados de los tests
+ */
 app.post('/comparartests', async (req, res) => {
   const { ids } = req.body;
 
@@ -977,6 +1095,13 @@ app.post('/comparartests', async (req, res) => {
 //REPOSITORIO PREPARACION FISICA
 ////////////////////////////////
 
+/**
+ * Sube archivo al repositorio físico de preparación física.
+ * @function subirArchivoFisico
+ * @route POST /repositoriofisico/subir
+ * @param {file} archivo - Archivo a subir
+ * @returns {object} Información del archivo
+ */
 app.post('/repositoriofisico/subir', uploadRepoFisico.single('archivo'), async (req, res) => {
   const { equipo, semana, dia, bloque, nombre, creado_por } = req.query;
   const filePath = path.relative(__dirname, req.file.path);
@@ -995,6 +1120,13 @@ app.post('/repositoriofisico/subir', uploadRepoFisico.single('archivo'), async (
   }
 });
 
+/**
+ * Lista archivos del repositorio físico por equipo.
+ * @function getRepositorioFisico
+ * @route GET /repositoriofisico/:equipo
+ * @param {string} equipo - Nombre del equipo
+ * @returns {object[]} Lista de archivos
+ */
 app.get('/repositoriofisico/:equipo', async (req, res) => {
   const equipo = req.params.equipo;
   try {
@@ -1018,6 +1150,13 @@ app.get('/repositoriofisico/:equipo', async (req, res) => {
   }
 });
 
+/**
+ * Elimina archivo del repositorio físico.
+ * @function eliminarArchivoFisico
+ * @route DELETE /repositoriofisico/:id
+ * @param {string} id - ID del archivo
+ * @returns {object} Resultado de la operación
+ */
 app.delete('/repositoriofisico/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -1034,6 +1173,13 @@ app.delete('/repositoriofisico/:id', async (req, res) => {
   }
 });
 
+/**
+ * Sube una guía de bloque al repositorio físico.
+ * @function subirGuiaFisica
+ * @route POST /repositoriofisico/guia
+ * @param {file} archivo - Guía del bloque
+ * @returns {object} Resultado de la subida
+ */
 app.post('/repositoriofisico/guia', uploadRepoFisico.single('archivo'), async (req, res) => {
   const { equipo, bloque, nombre, creado_por } = req.body;
   const semana = (bloque - 1) * 4 + 1; // Semana inicial del bloque
@@ -1056,6 +1202,13 @@ app.post('/repositoriofisico/guia', uploadRepoFisico.single('archivo'), async (r
 //  METODOLOGÍA
 ////////////////////////////////
 
+/**
+ * Crea una nueva reunión metodológica (con archivos).
+ * @function crearReunionMetodologica
+ * @route POST /reuniones-metodologia
+ * @param {object} datos - Información de la reunión
+ * @returns {object} Resultado de la operación
+ */
 app.post('/reuniones-metodologia', uploadMetodologia.array('archivos', 5), async (req, res) => {
   const { titulo, descripcion, fecha, creado_por } = req.body;
 
@@ -1087,6 +1240,12 @@ app.post('/reuniones-metodologia', uploadMetodologia.array('archivos', 5), async
   }
 });
 
+/**
+ * Obtiene todas las reuniones metodológicas.
+ * @function getReunionesMetodologia
+ * @route GET /reuniones-metodologia
+ * @returns {object[]} Lista de reuniones
+ */
 app.get('/reuniones-metodologia', async (req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -1107,6 +1266,13 @@ app.get('/reuniones-metodologia', async (req, res) => {
   }
 });
 
+/**
+ * Elimina una reunión metodológica.
+ * @function eliminarReunionMetodologia
+ * @route DELETE /reuniones-metodologia/:id
+ * @param {number} id - ID de la reunión
+ * @returns {object} Resultado de la eliminación
+ */
 app.delete('/reuniones-metodologia/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -1136,6 +1302,14 @@ app.delete('/reuniones-metodologia/:id', async (req, res) => {
 ////////////////////////////////
 // RPE PREPARACION FISICA
 ////////////////////////////////
+
+/**
+ * Registra datos RPE para jugadores.
+ * @function registrarRPE
+ * @route POST /rpe
+ * @param {object[]} datos - Datos de esfuerzo percibido por jugador
+ * @returns {object} Resultado del guardado
+ */
 app.post('/rpe', async (req, res) => {
   const { equipo, mes, semana, dia, datos, creado_por } = req.body;
 
@@ -1161,6 +1335,13 @@ app.post('/rpe', async (req, res) => {
   }
 });
 
+/**
+ * Lista los datos RPE de un equipo.
+ * @function getRPE
+ * @route GET /rpe/:equipo
+ * @param {string} equipo - Nombre del equipo
+ * @returns {object[]} Lista de datos RPE
+ */
 app.get('/rpe/:equipo', async (req, res) => {
   const { equipo } = req.params;
 
@@ -1181,7 +1362,13 @@ app.get('/rpe/:equipo', async (req, res) => {
   }
 });
 
-// Borrar todos los RPE de un día concreto (mes + semana + dia + equipo)
+/**
+ * Elimina todos los RPE de un día concreto.
+ * @function eliminarRPE
+ * @route DELETE /rpe
+ * @param {object} datos - Información de fecha y equipo
+ * @returns {object} Resultado de la eliminación
+ */
 app.delete('/rpe', async (req, res) => {
   const { equipo, mes, semana, dia } = req.body;
 
@@ -1202,6 +1389,13 @@ app.delete('/rpe', async (req, res) => {
 // CUENTAS
 ////////////////////////////////
 
+/**
+ * Lista cuotas anuales de jugadores de un equipo.
+ * @function getCuotas
+ * @route GET /cuotas/:equipo
+ * @param {string} equipo - Nombre del equipo
+ * @returns {object[]} Lista de cuotas por jugador
+ */
 app.get('/cuotas/:equipo', async (req, res) => {
   const equipo = req.params.equipo.toLowerCase();
   const temporada = '2025-2026'; // puedes parametrizarla en el futuro
@@ -1223,6 +1417,13 @@ app.get('/cuotas/:equipo', async (req, res) => {
   }
 });
 
+/**
+ * Actualiza un pago específico de la cuota de un jugador.
+ * @function actualizarCuota
+ * @route POST /cuotas/actualizar
+ * @param {object} datos - Información del jugador y pago
+ * @returns {object} Resultado de la actualización
+ */
 app.post('/cuotas/actualizar', async (req, res) => {
   const { jugador_id, equipo, pagoIndex, valor } = req.body;
   const temporada = '2025-2026';
@@ -1258,6 +1459,13 @@ app.post('/cuotas/actualizar', async (req, res) => {
   }
 });
 
+/**
+ * Obtiene los jugadores con pagos pendientes.
+ * @function getCuotasPendientes
+ * @route GET /cuotas/pendientes/:equipo
+ * @param {string} equipo - Nombre del equipo
+ * @returns {object[]} Lista de jugadores con pagos pendientes
+ */
 app.get('/cuotas/pendientes/:equipo', async (req, res) => {
   const equipo = req.params.equipo.toLowerCase();
   const temporada = '2025-2026';
@@ -1286,7 +1494,13 @@ app.get('/cuotas/pendientes/:equipo', async (req, res) => {
 
 
 
-
+/**
+ * Genera un PDF con los pagos pendientes.
+ * @function generarPDFCuotas
+ * @route POST /generar-pdf-cuotas
+ * @param {object} datos - Información de jugadores y equipo
+ * @returns {file} Archivo PDF generado
+ */
 app.post('/generar-pdf-cuotas', async (req, res) => {
   const { jugadores, equipo, temporada } = req.body;
 
@@ -1388,6 +1602,13 @@ function obtenerPrecios(equipo) {
 // SCOUT
 ////////////////////////////////
 
+/**
+ * Crea un nuevo jugador en seguimiento (scout).
+ * @function crearScout
+ * @route POST /scout
+ * @param {object} jugador - Datos del jugador observado
+ * @returns {object} ID del jugador creado
+ */
 app.post('/scout', async (req, res) => {
   const {
   nombre: nombre_completo,
@@ -1419,7 +1640,13 @@ app.post('/scout', async (req, res) => {
   }
 });
 
-
+/**
+ * Lista jugadores en seguimiento por año de nacimiento.
+ * @function getScoutPorNacimiento
+ * @route GET /scout/:nacimiento
+ * @param {number} nacimiento - Año de nacimiento
+ * @returns {object[]} Lista de jugadores observados
+ */
 app.get('/scout/:nacimiento', async (req, res) => {
   const anio = parseInt(req.params.nacimiento, 10);
   try {
@@ -1435,7 +1662,12 @@ app.get('/scout/:nacimiento', async (req, res) => {
 });
 
 
-// Obtener todas las posiciones desde el enum 'posicion'
+/**
+ * Obtiene todas las posiciones posibles.
+ * @function getPosiciones
+ * @route GET /posiciones
+ * @returns {string[]} Lista de posiciones
+ */
 app.get('/posiciones', async (req, res) => {
   try {
     const resultado = await pool.query(
@@ -1449,7 +1681,13 @@ app.get('/posiciones', async (req, res) => {
   }
 });
 
-
+/**
+ * Genera un PDF con los datos de un jugador en seguimiento.
+ * @function generarPDFScout
+ * @route POST /scout/pdf
+ * @param {object} datos - Información del jugador y equipo
+ * @returns {file} Archivo PDF generado
+ */
 app.post('/scout/pdf', async (req, res) => {
   const jugador = req.body;
 
@@ -1538,7 +1776,13 @@ app.post('/scout/pdf', async (req, res) => {
 });
 
 
-
+/**
+ * Elimina un jugador en seguimiento.
+ * @function eliminarScout
+ * @route DELETE /scout/:id
+ * @param {number} id - ID del jugador
+ * @returns {object} Resultado de la eliminación
+ */
 app.delete('/scout/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
 

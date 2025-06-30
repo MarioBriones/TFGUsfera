@@ -28,6 +28,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');    // elimina caracteres especiales
 }
 
+/**
+ * Componente para gestión del repositorio mensual y semanal.
+ * @function Repositorio
+ * @returns {JSX.Element} Vista con archivos organizados por semana y día
+ */
 export default function Repositorio() {
   // Recuperamos el usuario del estado de navegación (pasado desde Inicio.jsx)
   const { state } = useLocation();
@@ -138,7 +143,13 @@ export default function Repositorio() {
       .catch(console.error);
   }, [selectedTeam]);
 
-  // 3) Subir PDF: creamos FormData y lo enviamos al backend
+  /**
+ * Sube un archivo al repositorio general.
+ * @function handleUpload
+ * @async
+ * @param {Event} e - Evento del input tipo archivo
+ * @returns {Promise<void>}
+ */
   const handleUpload = async (semana, dia, file) => {
     const form = new FormData();
     form.append('pdf', file);
@@ -167,7 +178,13 @@ export default function Repositorio() {
     });
   };
 
-  // 4) Borrar PDF: solicitamos DELETE al backend y actualizamos estado
+ /**
+ * Elimina un archivo del repositorio.
+ * @function handleDelete
+ * @async
+ * @param {object} archivo - Información del archivo a eliminar
+ * @returns {Promise<void>}
+ */
   const handleDelete = async (semana, dia, equipo) => {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/repositorio`, {
       method: 'DELETE',

@@ -9,6 +9,11 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+/**
+ * Componente de formulario de inicio de sesión.
+ * @function Login
+ * @returns {JSX.Element} Vista de login con validación y redirección
+ */
 function Login() {
   const [email, setEmail] = useState('');
   const [clave, setClave] = useState('');
@@ -17,7 +22,12 @@ function Login() {
   const location = useLocation();
 
   const redirigido = location.state?.desdeRutaPrivada;
-
+/**
+ * Maneja el proceso de autenticación con email y contraseña.
+ * @function handleLogin
+ * @param {React.FormEvent} e - Evento de envío del formulario
+ * @returns {Promise<void>}
+ */
   const handleLogin = async (e) => {
     e.preventDefault();
     try {

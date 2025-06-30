@@ -29,6 +29,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');    // elimina caracteres especiales
 }
 
+/**
+ * Componente para gestionar el repositorio físico de entrenamiento.
+ * @function RepFisico
+ * @returns {JSX.Element} Vista con subida, listado y borrado de archivos físicos
+ */
 export default function RepFisico() {
   // Recuperamos el usuario del estado de navegación (pasado desde Inicio.jsx)
   const { state } = useLocation();
@@ -162,6 +167,12 @@ useEffect(() => {
       });
   }, [selectedTeam, subiendo]);
 
+  /**
+ * Agrupa los archivos por semana y día en un objeto estructurado.
+ * @function agruparPorSemanaDia
+ * @param {Array} archivos - Lista de archivos físicos
+ * @returns {object} Archivos agrupados por semana y día
+ */
   const agruparPorSemanaDia = () => {
     const mapa = {};
     archivos.forEach(a => {
@@ -173,6 +184,14 @@ useEffect(() => {
 
   const archivosPorSemana = agruparPorSemanaDia();
 
+  /**
+ * Abre un selector de archivo y sube un archivo RPE asociado a una semana y día concretos.
+ * @function handleSubir
+ * @async
+ * @param {number|string} semana - Número de la semana
+ * @param {string} dia - Día de la semana (ej. 'Lunes', 'Martes'...)
+ * @returns {Promise<void>} Nada si la subida se realiza correctamente
+ */
 const handleSubir = async (semana, dia) => {
   if (!selectedTeam || selectedTeam === 'todo') {
     alert("Selecciona un equipo válido.");
@@ -211,6 +230,12 @@ const handleSubir = async (semana, dia) => {
   
 };
 
+/**
+ * Abre un selector de archivo y sube una guía PDF para un bloque concreto.
+ * @function subirGuiaBloque
+ * @param {string} bloque - Nombre del bloque al que pertenece la guía
+ * @returns {void} No devuelve nada directamente, pero lanza un `fetch` para subir el archivo
+ */
 const subirGuiaBloque = (bloque) => {
   if (!selectedTeam || selectedTeam === 'todo') {
     alert("Selecciona un equipo válido.");
@@ -247,7 +272,14 @@ const subirGuiaBloque = (bloque) => {
   input.click();
    
 };
-// Nueva función para borrar
+
+/**
+ * Elimina un archivo del repositorio físico desde el backend.
+ * @function handleBorrar
+ * @async
+ * @param {string} id - ID del archivo a eliminar
+ * @returns {Promise<void>} Resultado de la eliminación
+ */
 const handleBorrar = async (id) => {
   const confirmar = window.confirm("¿Estás seguro de que deseas eliminar este archivo?");
   if (!confirmar) return;
@@ -264,6 +296,11 @@ const handleBorrar = async (id) => {
   setSubiendo(prev => !prev);
 };
 
+/**
+ * Genera el array de nombres de bloques disponibles (Bloque 1 a Bloque 5).
+ * @function renderBloques
+ * @returns {string[]} Lista de nombres de bloques
+ */
   const renderBloques = () => {
     const bloques = [];
     

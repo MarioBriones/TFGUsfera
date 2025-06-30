@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Inicio.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Inicio.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Inicio.jsx
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+
+
+// Helper para crear slugs a partir del nombre
+function slugify(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]/g, '');
+}
+
+/**
+ * Componente principal de inicio tras el login.
+ * @function Inicio
+ * @returns {JSX.Element} Vista con menú dinámico y accesos según el rol
+ */
+export default function Inicio() {
+  const { state } = useLocation();
+  const usuario = state?.usuario || {};
+  const navigate = useNavigate();
+
+  // ——— Menú horizontal según rol ———
+  const opcionesEntrenador = [
+    'PLANTILLA',
+    'REPOSITORIO',
+    'METODOLOGÍA',
+    'PREP. FÍSICA',
+    'SCOUT',
+    
+  ];
+  const opcionesDirCoord = [
+    'PLANTILLAS',
+    'REPOSITORIO',
+    'METODOLOGÍA',
+    'PREP. FÍSICA',
+    'SCOUT',
+    'CUENTAS',
+    
+  ];
+  const opcionesMenu = ['director', 'coordinador'].includes(usuario.rol)
+    ? opcionesDirCoord
+    : opcionesEntrenador;
+
+  // ——— Accesos directos de la columna derecha ———
+  const principalesPorRol = {
+    director: ['Jugadores', 'Estadísticas'],
+    coordinador: ['Entrenamientos', 'Documentos'],
+    entrenador: ['Jugadores', 'Pagos &amp; Ropa'],
+  };
+  const principales = principalesPorRol[usuario.rol] || [];
+
+  // ——— Estado de la agenda de tareas ———
+  const [tareas, setTareas] = useState([]);
+  const [tareasCreadas, setTareasCreadas] = useState([]);
+  const [nuevaDesc, setNuevaDesc] = useState('');
+  const [nuevaFecha, setNuevaFecha] = useState('');
+  const [usuarios, setUsuarios] = useState([]);
+  const [nuevoAsignado, setNuevoAsignado] = useState(usuario.id);
+
+  const hoy = new Date().toISOString().split('T')[0];
+  const fotoSrc = `${import.meta.env.BASE_URL}fotos/${slugify(
+    usuario.nombre || 'avatar-blank'
+  )}.png`;
+
+const [proximosCumples, setProximosCumples] = useState([]);
+
+useEffect(() => {
+  fetch(`${import.meta.env.VITE_API_URL}/cumples`)
+    .then((r) => r.json())
+    .then((data) => {
+      if (!data.success) return;
+
+      const hoy = new Date();
+      const esCoordDir = ['coordinador', 'director'].includes(usuario.rol);
+      const miEquipo = usuario.equipo?.toLowerCase();
+
+      // Filtramos por equipo si no es director ni coordinador
+      const jugadoresFiltrados = esCoordDir
+        ? data.jugadores
+        : data.jugadores.filter(j => j.equipo.toLowerCase() === miEquipo);
+
+      const startOfToday = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+
+const conCumple = jugadoresFiltrados
+  .map(j => {
+    const fechaNac = new Date(j.fecha_nacimiento);
+    const cumpleEsteAnio = new Date(hoy.getFullYear(), fechaNac.getMonth(), fechaNac.getDate());
+    if (cumpleEsteAnio &lt; startOfToday) cumpleEsteAnio.setFullYear(hoy.getFullYear() + 1);
+
+    return {
+      ...j,
+      cumpleDate: cumpleEsteAnio,
+      diasParaCumple: Math.floor((cumpleEsteAnio - startOfToday) / (1000 * 60 * 60 * 24)),
+    };
+  })
+  .sort((a, b) => a.diasParaCumple - b.diasParaCumple)
+  .slice(0, 3);
+
+      setProximosCumples(conCumple);
+    })
+    .catch(console.error);
+}, [usuario]);
+
+  // ——— 1) Carga inicial de tareas (para mí y las que creé) ———
+  useEffect(() => {
+    if (!usuario.id) return;
+    Promise.all([
+      fetch(
+        `${import.meta.env.VITE_API_URL}/tareas/${usuario.id}`
+      ).then((r) => r.json()),
+      fetch(
+        `${import.meta.env.VITE_API_URL}/tareas/creadas/${usuario.id}`
+      ).then((r) => r.json()),
+    ])
+      .then(([asig, creadas]) => {
+        if (asig.success) setTareas(asig.tareas);
+        if (creadas.success) setTareasCreadas(creadas.tareas);
+      })
+      .catch(console.error);
+  }, [usuario.id]);
+
+  // ——— 2) Carga select de usuarios (solo director/coordinador) ———
+  useEffect(() => {
+    if (!['director', 'coordinador'].includes(usuario.rol)) return;
+    Promise.all([
+      fetch(
+        `${import.meta.env.VITE_API_URL}/usuarios?rol=entrenador`
+      ).then((r) => r.json()),
+      fetch(
+        `${import.meta.env.VITE_API_URL}/usuarios?rol=coordinador`
+      ).then((r) => r.json()),
+    ])
+      .then(([eData, cData]) => {
+        if (eData.success &amp;&amp; cData.success) {
+          const merged = [...eData.usuarios, ...cData.usuarios];
+          const unique = merged.filter(
+            (u, i, a) => a.findIndex((x) => x.id === u.id) === i
+          );
+          const others = unique.filter((u) => u.id !== usuario.id);
+          setUsuarios([{ id: usuario.id, nombre: `${usuario.nombre} (yo)` }, ...others]);
+          setNuevoAsignado(usuario.id);
+        }
+      })
+      .catch(console.error);
+  }, [usuario.rol, usuario.id, usuario.nombre]);
+
+  // ——— 3) Crear nueva tarea ———
+  const crearTarea = async () => {
+    if (!nuevaDesc) return;
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/tareas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        descripcion: nuevaDesc,
+        creado_por: usuario.id,
+        asignado_para: nuevoAsignado,
+        limite: nuevaFecha || null,
+      }),
+    });
+    const json = await res.json();
+    if (!json.success) return;
+
+    // Enriquecer tarea sin recargar toda la lista
+    const asignado =
+      usuarios.find((u) => u.id === nuevoAsignado)?.nombre ||
+      usuario.nombre;
+    const nueva = {
+      ...json.tarea,
+      creado_por_nombre: usuario.nombre,
+      asignado_a_nombre: asignado,
+    };
+    if (nuevoAsignado === usuario.id) setTareas((prev) => [nueva, ...prev]);
+    else setTareasCreadas((prev) => [nueva, ...prev]);
+
+    setNuevaDesc('');
+    setNuevaFecha('');
+  };
+
+  // ——— 4) Marcar/desmarcar completada ———
+  const toggleCompletada = async (id, actual) => {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/tareas/${id}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completado: !actual }),
+      }
+    );
+    const { success, tarea } = await res.json();
+    if (!success) return;
+    const update = (list) =>
+      list.map((t) =>
+        t.id === id
+          ? { ...t, completado: tarea.completado, limite: tarea.limite }
+          : t
+      );
+    setTareas(update);
+    setTareasCreadas(update);
+  };
+
+  // ——— 5) Eliminar tarea completada ———
+  const eliminarTarea = async (id) => {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/tareas/${id}`,
+      { method: 'DELETE' }
+    );
+    const json = await res.json();
+    if (!json.success) return;
+    setTareas((prev) => prev.filter((t) => t.id !== id));
+    setTareasCreadas((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  return (
+    &lt;div
+      className="relative flex flex-col min-h-screen bg-cover bg-center"
+      style={{
+        backgroundImage: `url(${import.meta.env.BASE_URL}fondo2.png)`,
+      }}
+    >
+      {/* Overlay suave para atenuar la imagen */}
+      &lt;div className="absolute inset-0 bg-black/10 pointer-events-none" />
+
+      {/* ——— HEADER FIJO ——— */}
+      &lt;header className="sticky top-0 z-50">
+        {/* Línea superior gris */}
+        &lt;div className="h-1 bg-gray-400 w-full" />
+
+        {/* Franja principal */}
+        &lt;div className="bg-gray-200">
+          &lt;div className="relative flex items-center justify-between w-full px-4 sm:px-6 lg:px-8 py-3">
+            {/* Logo a la izquierda */}
+            &lt;img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="Escudo Unionistas"
+              className="h-12 w-12 cursor-pointer flex-shrink-0"
+              onClick={() =>
+                navigate('/home', { state: { usuario } })
+              }
+            />
+
+            {/* Título + subtítulo centrados */}
+            &lt;div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-4">
+              &lt;h1
+                className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 cursor-pointer hover:text-red-600 transition pointer-events-auto"
+                onClick={() =>
+                  navigate('/home', { state: { usuario } })
+                }
+              >
+                USFERA
+              &lt;/h1>
+              &lt;p className="hidden sm:block text-sm sm:text-base text-gray-600">
+                Gestión y administración – Cantera de Unionistas de Salamanca CF
+              &lt;/p>
+            &lt;/div>
+
+            {/* Botón cerrar sesión a la derecha */}
+            &lt;div className="flex-shrink-0">
+              &lt;Button
+                variant="outline"
+                className="bg-transparent border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition"
+                onClick={() => navigate('/')}
+              >
+                Cerrar Sesión
+              &lt;/Button>
+            &lt;/div>
+          &lt;/div>
+        &lt;/div>
+
+        {/* Línea fina */}
+        &lt;div className="h-px bg-gray-400 w-full" />
+
+        {/* Menú secundario */}
+        &lt;div className="bg-red-50">
+          &lt;nav className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+            &lt;ul className="flex flex-wrap justify-center gap-2 sm:gap-4 py-2 text-sm">
+              {opcionesMenu.map((opt) => (
+                &lt;li key={opt}>
+                  &lt;button
+                    onClick={() =>
+                      navigate(
+                        `/${opt.toLowerCase().replace(/\s+/g, '')}`,
+                        { state: { usuario } }
+                      )
+                    }
+                    className="px-3 py-1 text-gray-700 hover:text-white hover:bg-red-600 rounded transition"
+                  >
+                    {opt}
+                  &lt;/button>
+                &lt;/li>
+              ))}
+            &lt;/ul>
+          &lt;/nav>
+        &lt;/div>
+
+        {/* Línea divisoria roja */}
+        &lt;div className="h-1 bg-red-600 w-full" />
+      &lt;/header>
+
+      {/* ——— MAIN CONTENT ——— */}
+      &lt;main className="relative flex-1 w-full px-4 sm:px-6 lg:px-8 py-6 bg-gradient-to-b from-red-50 to-white/90 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-24">
+        {/* AGENDA — ocupa 70vh */}
+        &lt;Card className="w-full bg-white/50 backdrop-blur-sm col-span-full lg:col-span-2 h-[70vh] overflow-auto">
+          &lt;CardHeader>
+            &lt;CardTitle>Tu Agenda&lt;/CardTitle>
+          &lt;/CardHeader>
+          &lt;CardContent className="space-y-4">
+            {/* Formulario de nueva tarea */}
+            &lt;div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+              {/* Descripción */}
+              &lt;div className="md:col-span-3">
+                &lt;label htmlFor="desc" className="text-sm font-medium">
+                  Descripción
+                &lt;/label>
+                &lt;Input
+                  id="desc"
+                  placeholder="Describe tu tarea…"
+                  value={nuevaDesc}
+                  onChange={(e) => setNuevaDesc(e.target.value)}
+                />
+              &lt;/div>
+              {/* Fecha límite */}
+              &lt;div className="md:col-span-1">
+                &lt;label htmlFor="limite" className="text-sm font-medium">
+                  Fecha límite
+                &lt;/label>
+                &lt;Input
+                  id="limite"
+                  type="date"
+                  min={hoy}
+                  value={nuevaFecha}
+                  onChange={(e) => setNuevaFecha(e.target.value)}
+                />
+              &lt;/div>
+              {/* Select usuarios */}
+              &lt;div className="md:col-span-1">
+                &lt;label htmlFor="asignado" className="text-sm font-medium">
+                  Asignar a:{' '}
+                &lt;/label>
+                {['director', 'coordinador'].includes(usuario.rol) ? (
+                  &lt;Select
+                    id="asignado"
+                    value={String(nuevoAsignado)}
+                    onValueChange={(v) => setNuevoAsignado(Number(v))}
+                  >
+                    &lt;SelectTrigger className="w-full">
+                      &lt;SelectValue placeholder="Usuario" />
+                    &lt;/SelectTrigger>
+                    &lt;SelectContent>
+                      {usuarios.map((u) => (
+                        &lt;SelectItem key={u.id} value={String(u.id)}>
+                          {u.nombre}
+                        &lt;/SelectItem>
+                      ))}
+                    &lt;/SelectContent>
+                  &lt;/Select>
+                ) : (
+                  &lt;span className="pt-2">{usuario.nombre}&lt;/span>
+                )}
+              &lt;/div>
+              {/* Botón Añadir */}
+              &lt;div className="md:col-span-1 flex items-end">
+                &lt;Button onClick={crearTarea}>Añadir tarea&lt;/Button>
+              &lt;/div>
+            &lt;/div>
+
+            {/* Listas separadas */}
+            &lt;div
+              className={`grid grid-cols-1 ${
+                usuario.rol !== 'entrenador' ? 'md:grid-cols-2' : ''
+              } gap-6`}
+            >
+              {/* Mis tareas */}
+              &lt;Card className="w-full max-h-[60vh] overflow-auto">
+                &lt;CardHeader>
+                  &lt;CardTitle>Mis tareas&lt;/CardTitle>
+                &lt;/CardHeader>
+                &lt;CardContent className="space-y-4">
+                  {tareas.map((t) => (
+                    &lt;div
+                      key={t.id}
+                      className="p-4 bg-white rounded shadow flex justify-between"
+                    >
+                      &lt;div>
+                        &lt;p
+                          className={
+                            t.completado
+                              ? 'line-through text-gray-500'
+                              : ''
+                          }
+                        >
+                          {t.descripcion}
+                        &lt;/p>
+                        &lt;p className="text-xs text-gray-500 mt-1">
+                          Límite:{' '}
+                          {t.limite
+                            ? new Date(t.limite).toLocaleDateString()
+                            : 'Sin límite'}{' '}
+                          • Creada por: {t.creado_por_nombre} • Asignada a:{' '}
+                          {t.asignado_a_nombre}
+                        &lt;/p>
+                      &lt;/div>
+                      &lt;div className="flex space-x-2">
+                        &lt;Button
+                          size="icon"
+                          variant={t.completado ? 'destructive' : 'outline'}
+                          onClick={() =>
+                            toggleCompletada(t.id, t.completado)
+                          }
+                        >
+                          {t.completado ? '✓' : '○'}
+                        &lt;/Button>
+                        {t.completado &amp;&amp; (
+                          &lt;Button
+                            size="icon"
+                            variant="destructive"
+                            onClick={() => eliminarTarea(t.id)}
+                          >
+                            🗑️
+                          &lt;/Button>
+                        )}
+                      &lt;/div>
+                    &lt;/div>
+                  ))}
+                &lt;/CardContent>
+              &lt;/Card>
+
+              {/* Tareas que asigné */}
+              {usuario.rol !== 'entrenador' &amp;&amp; (
+                &lt;Card className="w-full max-h-[60vh] overflow-auto">
+                  &lt;CardHeader>
+                    &lt;CardTitle>Tareas que asigné&lt;/CardTitle>
+                  &lt;/CardHeader>
+                  &lt;CardContent className="space-y-4">
+                    {tareasCreadas.map((t) => (
+                      &lt;div
+                        key={t.id}
+                        className="p-4 bg-white rounded shadow flex justify-between"
+                      >
+                        &lt;div>
+                          &lt;p
+                            className={
+                              t.completado
+                                ? 'line-through text-gray-500'
+                                : ''
+                            }
+                          >
+                            {t.descripcion}
+                          &lt;/p>
+                          &lt;p className="text-xs text-gray-500 mt-1">
+                            Límite:{' '}
+                            {t.limite
+                              ? new Date(t.limite).toLocaleDateString()
+                              : 'Sin límite'}{' '}
+                            • Creada por: {t.creado_por_nombre} • Asignada a:{' '}
+                            {t.asignado_a_nombre}
+                          &lt;/p>
+                        &lt;/div>
+                        &lt;div className="flex space-x-2">
+                          &lt;Button
+                            size="icon"
+                            variant={t.completado ? 'destructive' : 'outline'}
+                            onClick={() =>
+                              toggleCompletada(t.id, t.completado)
+                            }
+                          >
+                            {t.completado ? '✓' : '○'}
+                          &lt;/Button>
+                          {t.completado &amp;&amp; (
+                            &lt;Button
+                              size="icon"
+                              variant="destructive"
+                              onClick={() => eliminarTarea(t.id)}
+                            >
+                              🗑️
+                            &lt;/Button>
+                          )}
+                        &lt;/div>
+                      &lt;/div>
+                    ))}
+                  &lt;/CardContent>
+                &lt;/Card>
+              )}
+            &lt;/div>
+          &lt;/CardContent>
+        &lt;/Card>
+
+        {/* ——— DERECHA: Perfil + accesos directos (70vh total) ——— */}
+        &lt;div className="w-full px-2 col-span-full lg:col-span-1 flex flex-col space-y-4">
+          {/* PERFIL (30%) */}
+          &lt;Card className=" w-full  bg-white/80 backdrop-blur-sm flex-none overflow-hidden">
+            &lt;CardContent className="flex flex-col lg:flex-row h-full items-center justify-center p-4 space-y-4 lg:space-y-0 lg:space-x-4 text-center ">
+              {/* Texto (izquierda en desktop) */}
+              &lt;div className="w-full lg:w-1/2 flex flex-col justify-center items-center lg:items-end text-center lg:text-right space-y-1">
+                &lt;p className="text-2xl lg:text-4xl font-bold text-gray-800">
+                  {usuario.nombre}
+                &lt;/p>
+                &lt;p className="text-lg lg:text-xl text-gray-500 capitalize">
+                  {usuario.rol}
+                &lt;/p>
+                {usuario.rol === 'entrenador' &amp;&amp; (
+                  &lt;p className="text-lg lg:text-xl text-gray-500">
+                    Equipo: &lt;span className="uppercase">{usuario.equipo}&lt;/span>
+                  &lt;/p>
+                )}
+              &lt;/div>
+              {/* Avatar (derecha en desktop) */}
+              &lt;div className="w-full lg:w-1/2 flex justify-center">
+                &lt;img
+                  src={fotoSrc}
+                  alt={`Foto de ${usuario.nombre}`}
+                  className="h-28 w-28 lg:h-40 lg:w-40 rounded-full object-cover border-4 border-white shadow-md"
+                  onError={(e) =>
+                    (e.currentTarget.src = `${import.meta.env.BASE_URL}fotos/avatar-blank.png`)
+                  }
+                />
+              &lt;/div>
+            &lt;/CardContent>
+          &lt;/Card>
+
+          {/* ACCESOS DIRECTOS (cada uno 20%) */}
+          {usuario.rol === 'entrenador' ? (
+            &lt;>
+              {/* PLANTILLA */}
+              &lt;Card
+                as="button"
+                onClick={() =>
+                  navigate('/plantilla', { state: { usuario } })
+                }
+                className="w-full h-40 sm:h-48 lg:h-[20%] relative flex-none cursor-pointer overflow-hidden rounded-lg shadow-lg transition hover:shadow-2xl"
+              >
+                &lt;div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{
+                    backgroundImage: `url(${import.meta.env.BASE_URL}equipos/${usuario.equipo.toLowerCase()}/${usuario.equipo.toLowerCase()}.png)`,
+                  }}
+                />
+                &lt;div className="absolute inset-0 bg-black/40" />
+                &lt;CardContent className="relative flex items-center justify-center h-full p-4">
+                  &lt;h3 className="text-3xl font-bold text-white">PLANTILLA&lt;/h3>
+                &lt;/CardContent>
+              &lt;/Card>
+
+              {/* REPOSITORIO */}
+              &lt;Card
+                as="button"
+                onClick={() =>
+                  navigate('/repositorio', { state: { usuario } })
+                }
+                className="w-full bg-white/80 backdrop-blur-sm flex-none h-40 sm:h-48 lg:h-[20%] cursor-pointer rounded-lg shadow-lg transition hover:shadow-2xl"
+              >
+                &lt;CardContent className="flex flex-col sm:flex-row items-center justify-center h-full p-4 space-y-2 sm:space-y-0 sm:space-x-4">
+                  &lt;img
+                    src={`${import.meta.env.BASE_URL}repositorio.png`}
+                    alt="Repositorio"
+                    className="h-16 w-16 rounded flex-shrink-0"
+                  />
+                  &lt;div className="text-center sm:text-left">
+                    &lt;h3 className="text-2xl font-bold text-gray-800">
+                      REPOSITORIO
+                    &lt;/h3>
+                    &lt;p className="text-sm text-gray-600 mt-1">
+                      Sube tus entrenamientos y convocatorias semanalmente.
+                    &lt;/p>
+                  &lt;/div>
+                &lt;/CardContent>
+              &lt;/Card>
+
+              {/* SCOUTING */}
+              &lt;Card
+                as="button"
+                onClick={() =>
+                  navigate('/scout', { state: { usuario } })
+                }
+                className="w-full bg-white/80 backdrop-blur-sm flex-none h-40 sm:h-48 lg:h-[20%] cursor-pointer rounded-lg shadow-lg transition hover:shadow-2xl"
+              >
+                &lt;CardContent className="flex flex-col sm:flex-row items-center justify-center h-full p-4 space-y-2 sm:space-y-0 sm:space-x-4">
+                  &lt;img
+                    src={`${import.meta.env.BASE_URL}planificacion.png`}
+                    alt="Scout"
+                    className="h-16 w-16 rounded flex-shrink-0"
+                  />
+                  &lt;div className="text-center sm:text-left">
+                    &lt;h3 className="text-2xl font-bold text-gray-800">
+                      SCOUTING
+                    &lt;/h3>
+                    &lt;p className="text-sm text-gray-600 mt-1">
+                      Consulta la base de datos y añade o descarga informes de jugadores en seguimiento.
+                    &lt;/p>
+                  &lt;/div>
+                &lt;/CardContent>
+              &lt;/Card>
+            &lt;/>
+          ) : (
+            &lt;>
+              {/* PLANTILLAS */}
+              &lt;Card
+                as="button"
+                onClick={() =>
+                  navigate('/plantillas', { state: { usuario } })
+                }
+                className="w-full relative flex-none h-40 sm:h-48 lg:h-[20%] cursor-pointer overflow-hidden rounded-lg shadow-lg transition hover:shadow-2xl"
+              >
+                &lt;div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{
+                    backgroundImage: `url(${import.meta.env.BASE_URL}plantillas.png)`,
+                  }}
+                />
+                &lt;div className="absolute inset-0 bg-black/40" />
+                &lt;CardContent className="relative flex items-center justify-center h-full p-4">
+                  &lt;h3 className="text-4xl font-bold text-white">PLANTILLAS&lt;/h3>
+                &lt;/CardContent>
+              &lt;/Card>
+
+              {/* CUENTAS */}
+              &lt;Card
+                as="button"
+                onClick={() =>
+                  navigate('/cuentas', { state: { usuario } })
+                }
+                className="w-full bg-white/80 backdrop-blur-sm flex-none h-40 sm:h-48 lg:h-[20%] cursor-pointer rounded-lg shadow-lg transition hover:shadow-2xl"
+              >
+                &lt;CardContent className="flex flex-col sm:flex-row items-center justify-center h-full p-4 space-y-2 sm:space-y-0 sm:space-x-4">
+                  &lt;img
+                    src={`${import.meta.env.BASE_URL}cuentas.png`}
+                    alt="Cuentas"
+                    className="h-16 w-16 rounded flex-shrink-0"
+                  />
+                  &lt;div className="text-center sm:text-left">
+                    &lt;h3 className="text-2xl font-bold text-gray-800">
+                      CUENTAS
+                    &lt;/h3>
+                    &lt;p className="text-sm text-gray-600 mt-1">
+                      Control de pagos de ropa y de cuotas anuales por jugador.
+                    &lt;/p>
+                  &lt;/div>
+                &lt;/CardContent>
+              &lt;/Card>
+
+              {/* SCOUTING */}
+              &lt;Card
+                as="button"
+                onClick={() =>
+                  navigate('/scout', { state: { usuario } })
+                }
+                className="w-full bg-white/80 backdrop-blur-sm flex-none h-40 sm:h-48 lg:h-[20%] cursor-pointer rounded-lg shadow-lg transition hover:shadow-2xl"
+              >
+                &lt;CardContent className="flex flex-col sm:flex-row items-center justify-center h-full p-4 space-y-2 sm:space-y-0 sm:space-x-4">
+                  &lt;img
+                    src={`${import.meta.env.BASE_URL}planificacion.png`}
+                    alt="Scout"
+                    className="h-16 w-16 rounded flex-shrink-0"
+                  />
+                  &lt;div className="text-center sm:text-left">
+                    &lt;h3 className="text-2xl font-bold text-gray-800">
+                      SCOUTING
+                    &lt;/h3>
+                    &lt;p className="text-sm text-gray-600 mt-1">
+                      Consulta la base de datos y añade o descarga informes de jugadores en seguimiento.
+                    &lt;/p>
+                  &lt;/div>
+                &lt;/CardContent>
+              &lt;/Card>
+            &lt;/>
+          )}
+        &lt;/div>
+      &lt;/main>
+
+      {/* ——— FOOTER ——— */}
+      &lt;footer className="bg-gray-100 py-4">
+  &lt;div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
+    {/* Izquierda */}
+    &lt;div className="text-sm text-gray-600 text-center md:text-left">
+      Página diseñada y en pruebas por Mario Briones
+    &lt;/div>
+
+    {/* Centro */}
+    &lt;div className="flex justify-center">
+      &lt;img
+        src={`${import.meta.env.BASE_URL}pie.png`}
+        alt="Sello pie de página"
+        className="h-16 w-auto"
+      />
+    &lt;/div>
+
+    {/* Derecha: Cumples */}
+    &lt;div className="flex flex-col items-center md:items-end text-sm text-gray-700">
+      &lt;span className="font-semibold text-black-700  mb-1">
+        🎂 Próximos cumpleaños
+      &lt;/span>
+      {proximosCumples.length === 0 ? (
+        &lt;span className="text-gray-500 italic">Sin cumpleaños cercanos&lt;/span>
+      ) : (
+        &lt;ul className="flex flex-col gap-1">
+          {proximosCumples.map((j, idx) => {
+            const hoy = new Date();
+            const esHoy =
+              j.cumpleDate.getDate() === hoy.getDate() &amp;&amp;
+              j.cumpleDate.getMonth() === hoy.getMonth();
+            const dia = j.cumpleDate.getDate();
+            const mes = j.cumpleDate.toLocaleDateString('es-ES', { month: 'long' });
+
+            return (
+  &lt;li
+  key={idx}
+  className={`text-center px-2 ${
+    esHoy
+      ? 'text-red-700 bg-yellow-100 px-2 py-1 rounded shadow animate-pulse'
+      : 'text-gray-700'
+  }`}
+>
+  &lt;span className={`text-xs sm:text-sm font-medium ${esHoy ? 'font-bold' : ''}`}>
+    {esHoy &amp;&amp; '🎉 '}
+    {j.apodo?.toUpperCase() || 'SIN NOMBRE'} ({j.equipo?.toUpperCase() || 'SIN EQUIPO'}) – {dia} de {mes.charAt(0).toUpperCase() + mes.slice(1)}
+    {esHoy &amp;&amp; ' 🎉'}
+  &lt;/span>
+&lt;/li>
+);
+          })}
+        &lt;/ul>
+      )}
+    &lt;/div>
+  &lt;/div>
+&lt;/footer>
+    &lt;/div>
+  );
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#Cuentas">Cuentas</a></li><li><a href="global.html#Inicio">Inicio</a></li><li><a href="global.html#Login">Login</a></li><li><a href="global.html#Metodologia">Metodologia</a></li><li><a href="global.html#Plantilla">Plantilla</a></li><li><a href="global.html#PreparacionFisica">PreparacionFisica</a></li><li><a href="global.html#RepFisico">RepFisico</a></li><li><a href="global.html#Repositorio">Repositorio</a></li><li><a href="global.html#Rpe">Rpe</a></li><li><a href="global.html#Scout">Scout</a></li><li><a href="global.html#Tests">Tests</a></li><li><a href="global.html#actualizarTest">actualizarTest</a></li><li><a href="global.html#agruparPorSemanaDia">agruparPorSemanaDia</a></li><li><a href="global.html#borrarRPE">borrarRPE</a></li><li><a href="global.html#datosBarraGeneral">datosBarraGeneral</a></li><li><a href="global.html#datosPorJugador">datosPorJugador</a></li><li><a href="global.html#deleteOne">deleteOne</a></li><li><a href="global.html#descargarPendientesPDF">descargarPendientesPDF</a></li><li><a href="global.html#eliminarTest">eliminarTest</a></li><li><a href="global.html#generarSemanasMes">generarSemanasMes</a></li><li><a href="global.html#guardarRPE">guardarRPE</a></li><li><a href="global.html#guardarTest">guardarTest</a></li><li><a href="global.html#handleBorrar">handleBorrar</a></li><li><a href="global.html#handleBorrarReunion">handleBorrarReunion</a></li><li><a href="global.html#handleCrearJugador">handleCrearJugador</a></li><li><a href="global.html#handleDelete">handleDelete</a></li><li><a href="global.html#handleDescargarInforme">handleDescargarInforme</a></li><li><a href="global.html#handleEliminarJugador">handleEliminarJugador</a></li><li><a href="global.html#handleLogin">handleLogin</a></li><li><a href="global.html#handleSubir">handleSubir</a></li><li><a href="global.html#handleUpload">handleUpload</a></li><li><a href="global.html#moveBulk">moveBulk</a></li><li><a href="global.html#obtenerPrecios">obtenerPrecios</a></li><li><a href="global.html#renderBloques">renderBloques</a></li><li><a href="global.html#saveJugador">saveJugador</a></li><li><a href="global.html#semanaTieneDatos">semanaTieneDatos</a></li><li><a href="global.html#subirGuiaBloque">subirGuiaBloque</a></li><li><a href="global.html#tieneRPE">tieneRPE</a></li><li><a href="global.html#toggleMes">toggleMes</a></li><li><a href="global.html#togglePago">togglePago</a></li><li><a href="global.html#transformarDatosParaGrafico">transformarDatosParaGrafico</a></li><li><a href="global.html#transformarTestIndividualParaGrafico">transformarTestIndividualParaGrafico</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 30 2025 12:54:18 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: PreparacionFisica.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: PreparacionFisica.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Repositorio.jsx
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+
+
+// Función auxiliar para generar slugs de nombres (para URLs de imágenes)
+function slugify(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-\u036f]/g, '') // elimina acentos
+    .replace(/\s+/g, '-')       // espacios a guiones
+    .replace(/[^\w-]/g, '');    // elimina caracteres especiales
+}
+
+/**
+ * Componente principal de la sección de Preparación Física.
+ * @function PreparacionFisica
+ * @returns {JSX.Element} Vista con acceso a tests, RPE y repositorio físico
+ */
+export default function PreparacionFisica() {
+  // Recuperamos el usuario del estado de navegación (pasado desde Inicio.jsx)
+  const { state } = useLocation();
+  const usuario = state?.usuario || {};
+  const navigate = useNavigate();
+
+  // Definimos el menú superior según rol (entrenador vs director/coordinador)
+  const opcionesEntrenador = [
+    'PLANTILLA', 'REPOSITORIO', 'METODOLOGÍA', 'PREP. FÍSICA', 'SCOUT',  
+  ];
+  const opcionesDirCoord = [
+    'PLANTILLAS', 'REPOSITORIO', 'METODOLOGÍA', 'PREP. FÍSICA', 'SCOUT', 'CUENTAS',  
+  ];
+  const opcionesMenu = ['director', 'coordinador'].includes(usuario.rol)
+    ? opcionesDirCoord
+    : opcionesEntrenador;
+
+  // Estado local: listado de equipos (solo para director/coordinador)
+  const [equipos, setEquipos] = useState([]);
+  // Equipo seleccionado en el desplegable
+  const [selectedTeam, setSelectedTeam] = useState(usuario.equipo);
+
+  // Estructura de archivos cargados: files[semana][dia] = array de objetos { name, url, equipo }
+  const [files, setFiles] = useState({});
+
+  // Definimos semanas y días (
+  // semanas: 1..40, dias: Lunes..Convocatoria)
+  const semanas = Array.from({ length: 40 }, (_, i) => i + 1);
+  const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Convocatoria'];
+
+  // URL de avatar del usuario (fallback si no existe)
+  const fotoSrc = `${import.meta.env.BASE_URL}fotos/${slugify(usuario.nombre || 'avatar-blank')}.png`;
+
+// Cumpleaños pie de pagina
+  const [proximosCumples, setProximosCumples] = useState([]);
+  
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL}/cumples`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.success) return;
+  
+        const hoy = new Date();
+        const esCoordDir = ['coordinador', 'director'].includes(usuario.rol);
+        const miEquipo = usuario.equipo?.toLowerCase();
+  
+        // Filtramos por equipo si no es director ni coordinador
+        const jugadoresFiltrados = esCoordDir
+          ? data.jugadores
+          : data.jugadores.filter(j => j.equipo.toLowerCase() === miEquipo);
+  
+        const startOfToday = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const conCumple = jugadoresFiltrados
+    .map(j => {
+      const fechaNac = new Date(j.fecha_nacimiento);
+      const cumpleEsteAnio = new Date(hoy.getFullYear(), fechaNac.getMonth(), fechaNac.getDate());
+      if (cumpleEsteAnio &lt; startOfToday) cumpleEsteAnio.setFullYear(hoy.getFullYear() + 1);
+  
+      return {
+        ...j,
+        cumpleDate: cumpleEsteAnio,
+        diasParaCumple: Math.floor((cumpleEsteAnio - startOfToday) / (1000 * 60 * 60 * 24)),
+      };
+    })
+    .sort((a, b) => a.diasParaCumple - b.diasParaCumple)
+    .slice(0, 3);
+  
+        setProximosCumples(conCumple);
+      })
+      .catch(console.error);
+  }, [usuario]);
+
+  
+
+  return (
+    &lt;div
+    className="relative flex flex-col min-h-screen bg-cover bg-center"
+    style={{
+      backgroundImage: `url(${import.meta.env.BASE_URL}central.png)`,
+      backgroundColor: 'rgba(255, 255, 255, 0.3)', // suaviza el fondo como en Plantilla
+      backgroundBlendMode: 'lighten', // ajusta cómo se mezcla la imagen y el color
+    }}
+  >
+      {/* HEADER FIJO */}
+      &lt;header className="sticky top-0 z-50">
+        &lt;div className="h-1 bg-gray-400 w-full" />
+        &lt;div className="bg-gray-200">
+          &lt;div className="relative flex items-center justify-between w-full px-4 sm:px-6 lg:px-8 py-3">
+            {/* Escudo clicable vuelve al home */}
+            &lt;img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="Escudo Unionistas"
+              className="h-12 w-12 cursor-pointer flex-shrink-0"
+              onClick={() => navigate('/home', { state: { usuario } })}
+            />
+            {/* Título centrar con absolute para no alterar el flow */}
+            &lt;div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              &lt;h1
+                className="text-2xl sm:text-3xl font-bold text-gray-800 cursor-pointer hover:text-red-600 transition pointer-events-auto"
+                onClick={() => navigate('/home', { state: { usuario } })}
+              >
+                USFERA
+              &lt;/h1>
+              &lt;p className="text-sm sm:text-base text-gray-600">Preparación Física&lt;/p>
+            &lt;/div>
+            {/* Avatar y botón Cerrar Sesión */}
+                        &lt;div className="flex items-center space-x-2">
+                          &lt;img
+                            src={fotoSrc}
+                            alt={`Avatar de ${usuario.nombre}`}
+                            className="h-8 w-8 rounded-full object-cover border-2 border-white shadow-sm hidden sm:inline-block"
+                            onError={e => (e.currentTarget.src = `${import.meta.env.BASE_URL}fotos/avatar-blank.png`)}
+                          />
+                          &lt;Button
+                            variant="outline"
+                            className="bg-transparent border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition"
+                            onClick={() => navigate('/', { state: { usuario } })}
+                          >
+                            Cerrar Sesión
+                          &lt;/Button>
+                        &lt;/div>
+                      &lt;/div>
+                    &lt;/div>
+                   &lt;div className="h-px bg-gray-400 w-full" />
+                    &lt;div className="bg-red-50">
+                      &lt;nav className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+                        &lt;ul className="flex flex-wrap justify-center gap-2 sm:gap-4 py-2 text-sm">
+              {opcionesMenu.map(opt => (
+                &lt;li key={opt}>
+                  &lt;button
+                    onClick={() =>
+                      navigate(`/${opt.toLowerCase().replace(/\s+/g, '')}`, { state: { usuario } })
+                    }
+                    className={
+                      `px-3 py-1 rounded transition ` +
+                      (opt === 'PREP. FÍSICA'
+                        ? 'bg-gray-300 text-black'
+                        : 'text-gray-700 hover:text-white hover:bg-red-600')
+                    }
+                  >
+                    {opt}
+                  &lt;/button>
+                &lt;/li>
+              ))}
+            &lt;/ul>
+          &lt;/nav>
+        &lt;/div>
+        {/* línea divisoria roja */}
+        &lt;div className="h-1 bg-red-600 w-full" />
+      &lt;/header>
+
+     &lt;main className="flex-grow p-8 bg-gradient-to-b from-red-50 to-white/90">
+  &lt;div className="max-w-screen-xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    {/* Card 1: Tests */}
+    &lt;Card className="shadow-xl hover:shadow-2xl transition cursor-pointer" onClick={() => navigate('/testsfisicos', { state: { usuario } })}>
+      &lt;CardHeader>
+        &lt;CardTitle className="text-xl text-red-700 font-bold">🧪 Tests Cuantificables&lt;/CardTitle>
+      &lt;/CardHeader>
+      &lt;CardContent className="text-sm text-gray-700">
+        Crea nuevos tests, asigna valoraciones y calificaciones a los jugadores y consulta clasificaciones ordenadas viendo su progreso a lo largo de la temporada.
+      &lt;/CardContent>
+      &lt;CardFooter className="text-right">
+        &lt;Button className="ml-auto">Acceder&lt;/Button>
+      &lt;/CardFooter>
+    &lt;/Card>
+
+    {/* Card 2: Repositorio */}
+    &lt;Card className="shadow-xl hover:shadow-2xl transition cursor-pointer" onClick={() => navigate('/repositoriofisico', { state: { usuario } })}>
+      &lt;CardHeader>
+        &lt;CardTitle className="text-xl text-red-700 font-bold">📂 Repositorio Semanal&lt;/CardTitle>
+      &lt;/CardHeader>
+      &lt;CardContent className="text-sm text-gray-700">
+        Organiza y consulta los contenidos físicos por mes y semana. Sube archivos las sesiones de gimnasio y ve el contenido a realizar marcadado por el Departamento de Preparación Física.
+      &lt;/CardContent>
+      &lt;CardFooter className="text-right">
+        &lt;Button className="ml-auto">Acceder&lt;/Button>
+      &lt;/CardFooter>
+    &lt;/Card>
+
+    {/* Card 3: Seguimiento */}
+    &lt;Card className="shadow-xl hover:shadow-2xl transition cursor-pointer" onClick={() => navigate('/rpe', { state: { usuario } })}>
+      &lt;CardHeader>
+        &lt;CardTitle className="text-xl text-red-700 font-bold">📊 Seguimiento Diario (RPE)&lt;/CardTitle>
+      &lt;/CardHeader>
+      &lt;CardContent className="text-sm text-gray-700">
+        Asigna valores diarios en cuanto a cansancio y estado por jugador y genera estadísticas semanales por jugador y grupo.
+      &lt;/CardContent>
+      &lt;CardFooter className="text-right">
+        &lt;Button className="ml-auto">Acceder&lt;/Button>
+      &lt;/CardFooter>
+    &lt;/Card>
+  &lt;/div>
+&lt;/main>
+
+      {/* ——— FOOTER ——— */}
+      &lt;footer className="bg-gray-100 py-4">
+  &lt;div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
+    {/* Izquierda */}
+    &lt;div className="text-sm text-gray-600 text-center md:text-left">
+      Página diseñada y en pruebas por Mario Briones
+    &lt;/div>
+
+    {/* Centro */}
+    &lt;div className="flex justify-center">
+      &lt;img
+        src={`${import.meta.env.BASE_URL}pie.png`}
+        alt="Sello pie de página"
+        className="h-16 w-auto"
+      />
+    &lt;/div>
+
+    {/* Derecha: Cumples */}
+    &lt;div className="flex flex-col items-center md:items-end text-sm text-gray-700">
+      &lt;span className="font-semibold text-black-700  mb-1">
+        🎂 Próximos cumpleaños
+      &lt;/span>
+      {proximosCumples.length === 0 ? (
+        &lt;span className="text-gray-500 italic">Sin cumpleaños cercanos&lt;/span>
+      ) : (
+        &lt;ul className="flex flex-col gap-1">
+          {proximosCumples.map((j, idx) => {
+            const hoy = new Date();
+            const esHoy =
+              j.cumpleDate.getDate() === hoy.getDate() &amp;&amp;
+              j.cumpleDate.getMonth() === hoy.getMonth();
+            const dia = j.cumpleDate.getDate();
+            const mes = j.cumpleDate.toLocaleDateString('es-ES', { month: 'long' });
+
+            return (
+  &lt;li
+  key={idx}
+  className={`text-center ${
+    esHoy
+      ? 'text-red-700 bg-yellow-100 px-2 py-1 rounded shadow animate-pulse'
+      : 'text-gray-700'
+  }`}
+>
+  &lt;span className={`text-xs sm:text-sm font-medium ${esHoy ? 'font-bold' : ''}`}>
+    {esHoy &amp;&amp; '🎉 '}
+    {j.apodo?.toUpperCase() || 'SIN NOMBRE'} ({j.equipo?.toUpperCase() || 'SIN EQUIPO'}) – {dia} de {mes.charAt(0).toUpperCase() + mes.slice(1)}
+    {esHoy &amp;&amp; ' 🎉'}
+  &lt;/span>
+&lt;/li>
+);
+          })}
+        &lt;/ul>
+      )}
+    &lt;/div>
+  &lt;/div>
+&lt;/footer>
+    &lt;/div>
+  );
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#Cuentas">Cuentas</a></li><li><a href="global.html#Inicio">Inicio</a></li><li><a href="global.html#Login">Login</a></li><li><a href="global.html#Metodologia">Metodologia</a></li><li><a href="global.html#Plantilla">Plantilla</a></li><li><a href="global.html#PreparacionFisica">PreparacionFisica</a></li><li><a href="global.html#RepFisico">RepFisico</a></li><li><a href="global.html#Repositorio">Repositorio</a></li><li><a href="global.html#Rpe">Rpe</a></li><li><a href="global.html#Scout">Scout</a></li><li><a href="global.html#Tests">Tests</a></li><li><a href="global.html#actualizarTest">actualizarTest</a></li><li><a href="global.html#agruparPorSemanaDia">agruparPorSemanaDia</a></li><li><a href="global.html#borrarRPE">borrarRPE</a></li><li><a href="global.html#datosBarraGeneral">datosBarraGeneral</a></li><li><a href="global.html#datosPorJugador">datosPorJugador</a></li><li><a href="global.html#deleteOne">deleteOne</a></li><li><a href="global.html#descargarPendientesPDF">descargarPendientesPDF</a></li><li><a href="global.html#eliminarTest">eliminarTest</a></li><li><a href="global.html#generarSemanasMes">generarSemanasMes</a></li><li><a href="global.html#guardarRPE">guardarRPE</a></li><li><a href="global.html#guardarTest">guardarTest</a></li><li><a href="global.html#handleBorrar">handleBorrar</a></li><li><a href="global.html#handleBorrarReunion">handleBorrarReunion</a></li><li><a href="global.html#handleCrearJugador">handleCrearJugador</a></li><li><a href="global.html#handleDelete">handleDelete</a></li><li><a href="global.html#handleDescargarInforme">handleDescargarInforme</a></li><li><a href="global.html#handleEliminarJugador">handleEliminarJugador</a></li><li><a href="global.html#handleLogin">handleLogin</a></li><li><a href="global.html#handleSubir">handleSubir</a></li><li><a href="global.html#handleUpload">handleUpload</a></li><li><a href="global.html#moveBulk">moveBulk</a></li><li><a href="global.html#obtenerPrecios">obtenerPrecios</a></li><li><a href="global.html#renderBloques">renderBloques</a></li><li><a href="global.html#saveJugador">saveJugador</a></li><li><a href="global.html#semanaTieneDatos">semanaTieneDatos</a></li><li><a href="global.html#subirGuiaBloque">subirGuiaBloque</a></li><li><a href="global.html#tieneRPE">tieneRPE</a></li><li><a href="global.html#toggleMes">toggleMes</a></li><li><a href="global.html#togglePago">togglePago</a></li><li><a href="global.html#transformarDatosParaGrafico">transformarDatosParaGrafico</a></li><li><a href="global.html#transformarTestIndividualParaGrafico">transformarTestIndividualParaGrafico</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 30 2025 12:54:18 GMT+0200 (hora de verano de Europa central)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

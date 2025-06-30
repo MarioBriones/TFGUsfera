@@ -28,6 +28,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');    // elimina caracteres especiales
 }
 
+/**
+ * Componente para visualizar y gestionar reuniones metodológicas.
+ * @function Metodologia
+ * @returns {JSX.Element} Vista con archivos y opciones de administración
+ */
 export default function Metodologia() {
   // Recuperamos el usuario del estado de navegación (pasado desde Inicio.jsx)
   const { state } = useLocation();
@@ -112,7 +117,13 @@ const [nuevaReunion, setNuevaReunion] = useState({
 }, [mostrarFormulario]);
 
 
-  //) Borrar Reunión: 
+/**
+ * Elimina una reunión metodológica del backend.
+ * @function handleBorrarReunion
+ * @async
+ * @param {number} id - ID de la reunión a eliminar
+ * @returns {Promise<void>} Resultado de la eliminación
+ */
 const handleBorrarReunion = async (id) => {
   const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta reunión?");
   if (!confirmar) return;

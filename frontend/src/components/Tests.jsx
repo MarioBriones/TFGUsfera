@@ -40,6 +40,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');    // elimina caracteres especiales
 }
 
+/**
+ * Componente de gestión de tests físicos por equipo.
+ * @function Tests
+ * @returns {JSX.Element} Vista con formulario de creación, edición y comparación de tests
+ */
 export default function Tests() {
   // Recuperamos el usuario del estado de navegación (pasado desde Inicio.jsx)
   const { state } = useLocation();
@@ -195,7 +200,13 @@ useEffect(() => {
     .catch(console.error);
 }, [selectedTeam]);
 
-//Crear test
+
+/**
+ * Envía un nuevo test físico al backend con sus valores por jugador.
+ * @function guardarTest
+ * @async
+ * @returns {Promise<void>}
+ */
 const guardarTest = async () => {
   if (!nuevoTest.titulo || !nuevoTest.fecha) {
     alert("Debes completar el título y la fecha del test.");
@@ -248,7 +259,13 @@ const guardarTest = async () => {
   }
 };
 
-//Eliminar test
+/**
+ * Elimina un test físico del sistema.
+ * @function eliminarTest
+ * @async
+ * @param {number} id - ID del test a eliminar
+ * @returns {Promise<void>}
+ */
 const eliminarTest = async (id) => {
   if (!confirm('¿Seguro que quieres eliminar este test?')) return;
 
@@ -269,7 +286,13 @@ const eliminarTest = async (id) => {
   }
 };
 
-//Editar tests
+/**
+ * Actualiza un test físico existente con nuevos datos y valores.
+ * @function actualizarTest
+ * @async
+ * @param {object} test - Objeto del test modificado
+ * @returns {Promise<void>}
+ */
 const actualizarTest = async (id) => {
   const testOriginal = tests.find(t => t.id === id);
 
@@ -308,8 +331,12 @@ const actualizarTest = async (id) => {
   }
 };
 
-//Transformar datos para la grafica
-
+/**
+ * Convierte los resultados de múltiples tests en formato gráfico.
+ * @function transformarDatosParaGrafico
+ * @param {object[]} tests - Array de tests físicos con valores por jugador
+ * @returns {object[]} Datos transformados por jugador para comparar gráficamente
+ */
 function transformarDatosParaGrafico(tests) {
   const jugadoresMap = {};
 
@@ -344,7 +371,12 @@ for (const jugador of Object.values(jugadoresMap)) {
   return Object.values(jugadoresMap);
 }
 
-//Transformar para grafica de un solo test.
+/**
+ * Transforma un único test físico para mostrar sus datos en una gráfica.
+ * @function transformarTestIndividualParaGrafico
+ * @param {object} test - Test físico individual
+ * @returns {object[]} Lista de resultados por jugador
+ */
 function transformarTestIndividualParaGrafico(test) {
   const slug = slugifyTitulo(test.titulo);
 

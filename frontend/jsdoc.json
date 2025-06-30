@@ -1,0 +1,9 @@
+{
+  "source": {
+    "include": ["src/components"],
+    "includePattern": ".jsx?$"
+  },
+  "opts": {
+    "destination": "./docs"
+  }
+}

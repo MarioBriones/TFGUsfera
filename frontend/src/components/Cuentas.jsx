@@ -17,6 +17,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');
 }
 
+/**
+ * Componente de gestión de cuotas anuales por equipo.
+ * @function Cuentas
+ * @returns {JSX.Element} Vista con control de pagos y generación de PDF
+ */
 export default function Cuentas() {
   const { state } = useLocation();
   const usuario = state?.usuario || {};
@@ -87,6 +92,13 @@ useEffect(() => {
     .catch(console.error);
 }, [equipoAbierto]);
 
+/**
+ * Cambia el estado de pago de un jugador en una cuota concreta.
+ * @function togglePago
+ * @param {string} jugadorId - ID del jugador
+ * @param {number} index - Índice del pago (0, 1, 2)
+ * @returns {void}
+ */
 const togglePago = (jugador_id, pagoIndex, valor) => {
   const confirmar = window.confirm(
     valor
@@ -125,7 +137,12 @@ const togglePago = (jugador_id, pagoIndex, valor) => {
     });
 };
 
-
+/**
+ * Devuelve los precios por categoría del equipo.
+ * @function obtenerPrecios
+ * @param {string} equipo - Nombre del equipo
+ * @returns {number[]} Array con precios por pago
+ */
 function obtenerPrecios(equipo) {
   const equipos450 = [
     'prebenjamina', 'prebenjaminb', 'prebenjaminc',
@@ -135,6 +152,12 @@ function obtenerPrecios(equipo) {
   return [145, 200, 200]; // resto
 }
 
+/**
+ * Genera y descarga un PDF con las cuotas pendientes del equipo.
+ * @function descargarPendientesPDF
+ * @async
+ * @returns {Promise<void>} Nada si el PDF se genera correctamente
+ */
 const descargarPendientesPDF = async (equipo) => {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/cuotas/pendientes/${equipo}`);

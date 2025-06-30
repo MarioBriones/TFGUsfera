@@ -28,6 +28,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');    // elimina caracteres especiales
 }
 
+/**
+ * Componente principal de la sección de Preparación Física.
+ * @function PreparacionFisica
+ * @returns {JSX.Element} Vista con acceso a tests, RPE y repositorio físico
+ */
 export default function PreparacionFisica() {
   // Recuperamos el usuario del estado de navegación (pasado desde Inicio.jsx)
   const { state } = useLocation();

@@ -29,6 +29,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');
 }
 
+/**
+ * Componente principal de inicio tras el login.
+ * @function Inicio
+ * @returns {JSX.Element} Vista con menú dinámico y accesos según el rol
+ */
 export default function Inicio() {
   const { state } = useLocation();
   const usuario = state?.usuario || {};

@@ -24,6 +24,11 @@ function slugify(nombre) {
     .replace(/[^\w-]/g, '');
 }
 
+/**
+ * Componente de gestión de jugadores en seguimiento (scouting).
+ * @function Scout
+ * @returns {JSX.Element} Vista para registrar, visualizar y eliminar jugadores en seguimiento
+ */
 export default function Scout() {
   const { state } = useLocation();
   const usuario = state?.usuario || {};
@@ -98,6 +103,12 @@ useEffect(() => {
       });
   }, [anioSeleccionado]);
 
+  /**
+ * Crea un nuevo jugador en seguimiento con los datos proporcionados.
+ * @function handleCrearJugador
+ * @async
+ * @returns {Promise<void>}
+ */
 const handleCrearJugador = async (e) => {
   e.preventDefault();
 
@@ -160,6 +171,13 @@ const handleCrearJugador = async (e) => {
   }
 };
 
+/**
+ * Genera y descarga un informe PDF del jugador en seguimiento.
+ * @function handleDescargarInforme
+ * @async
+ * @param {object} jugador - Objeto con los datos del jugador
+ * @returns {Promise<void>} Descarga automática del archivo generado
+ */
 const handleDescargarInforme = async (jugador) => {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/scout/pdf`, {
@@ -182,7 +200,13 @@ const handleDescargarInforme = async (jugador) => {
   }
 };
 
-
+/**
+ * Elimina un jugador en seguimiento del sistema.
+ * @function handleEliminarJugador
+ * @async
+ * @param {number} id - ID del jugador a eliminar
+ * @returns {Promise<void>} Resultado de la operación de eliminación y actualización de lista
+ */
 const handleEliminarJugador = async (id) => {
   const confirmar = window.confirm('¿Estás seguro de que quieres eliminar este jugador en seguimiento?');
   if (!confirmar) return;
